@@ -1,0 +1,25 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: auth-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5434/foodrescue_auth}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    open-in-view: false
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+
+# Clé secrète JWT (surchargée par la variable d'environnement JWT_SECRET)
+jwt:
+  secret: ${JWT_SECRET:MaCleSecreteParDefautPourLeDeveloppementLocalQuiDoitFaireAuMoins256BitsDeLongueur}
+  expiration: 86400000  # 24 heures en millisecondes

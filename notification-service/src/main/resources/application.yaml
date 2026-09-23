@@ -1,0 +1,33 @@
+server:
+  port: 8085  # Port sur lequel ce microservice s'exécute localement
+
+spring:
+  application:
+    name: notification-service  # Nom sous lequel le service sera identifié dans Eureka
+
+  rabbitmq:
+    host: localhost             # Adresse du broker RabbitMQ (lancé localement)
+    port: 5672                  # Port AMQP standard de RabbitMQ
+    username: guest             # Identifiant par défaut de RabbitMQ
+    password: guest             # Mot de passe par défaut de RabbitMQ
+
+  # Configuration du serveur SMTP pour l'envoi d'emails (ex. Gmail)
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME:test@example.com}
+    password: ${MAIL_PASSWORD:dummy-password}  # Mot de passe d'application généré par Google
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+# Inscription du service auprès du Discovery Server (Eureka)
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true

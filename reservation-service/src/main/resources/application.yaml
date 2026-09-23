@@ -1,0 +1,31 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: reservation-service
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
+  datasource:
+    url: jdbc:postgresql://localhost:5433/foodrescue_reservations
+    username: postgres
+    password: postgres
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    open-in-view: false
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+jwt:
+  secret: ${JWT_SECRET:MaCleSecreteParDefautPourLeDeveloppementLocalQuiDoitFaireAuMoins256BitsDeLongueur}
+  expiration: 86400000  # 24 heures en millisecondes

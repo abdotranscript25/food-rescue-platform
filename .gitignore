@@ -1,0 +1,17 @@
+# Fichiers de compilation Java / Maven / Gradle
+target/
+build/
+.gradle/
+
+# Fichiers de configuration des IDE (IntelliJ, VS Code, Eclipse)
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# Fichiers sensibles ou système
+.env
+.DS_Store
+Thumbs.db

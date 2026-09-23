@@ -1,0 +1,248 @@
+services:
+  # ================================
+  # Service Discovery (Eureka)
+  # ================================
+  eureka-server:
+    build: ./discovery-service
+    image: discovery-service:1.0
+    container_name: eureka-server
+    ports:
+      - "8761:8761"
+    networks:
+      - foodrescue-network
+
+  # ================================
+  # Broker de Messages (RabbitMQ)
+  # ================================
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - foodrescue-network
+
+  # ================================
+  # Bases de données PostgreSQL
+  # ================================
+  postgres-offers:
+    image: postgres:16
+    container_name: postgres-offers
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: foodrescue_offers
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-offers-data:/var/lib/postgresql/data
+    networks:
+      - foodrescue-network
+
+  postgres-reservations:
+    image: postgres:16
+    container_name: postgres-reservations
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: foodrescue_reservations
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-reservations-data:/var/lib/postgresql/data
+    networks:
+      - foodrescue-network
+
+  postgres-auth:
+    image: postgres:16
+    container_name: postgres-auth
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: foodrescue_auth
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres-auth-data:/var/lib/postgresql/data
+    networks:
+      - foodrescue-network
+
+  postgres-users:
+    image: postgres:16
+    container_name: user-db-contain
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: foodrescue_users
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres-users-data:/var/lib/postgresql/data
+    networks:
+      - foodrescue-network
+
+  postgres-products:
+    image: postgres:16
+    container_name: product-db
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: foodrescue_products
+    ports:
+      - "5437:5432"
+    volumes:
+      - postgres-products-data:/var/lib/postgresql/data
+    networks:
+      - foodrescue-network
+
+  # ================================
+  # Microservices métier
+  # ================================
+  api-gateway:
+    build: ./api-gateway
+    image: api-gateway:1.0
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    depends_on:
+      - eureka-server
+    networks:
+      - foodrescue-network
+
+  offer-service:
+    build: ./offer-service
+    image: offer-service:1.0
+    container_name: offer-service
+    ports:
+      - "8081:8081"
+    env_file:
+      - .env
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-offers:5432/foodrescue_offers
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+    depends_on:
+      - eureka-server
+      - postgres-offers
+    networks:
+      - foodrescue-network
+
+  reservation-service:
+    build: ./reservation-service
+    image: reservation-service:1.0
+    container_name: reservation-service
+    ports:
+      - "8082:8082"
+    env_file:
+      - .env
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-reservations:5432/foodrescue_reservations
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+    depends_on:
+      - eureka-server
+      - postgres-reservations
+    networks:
+      - foodrescue-network
+
+  auth-service:
+    build: ./auth-service
+    image: auth-service:1.0
+    container_name: auth-service
+    ports:
+      - "8083:8083"
+    env_file:
+      - .env
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-auth:5432/foodrescue_auth
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+    depends_on:
+      - eureka-server
+      - postgres-auth
+    networks:
+      - foodrescue-network
+
+  user-service:
+    build: ./user-service
+    image: user-service:1.0
+    container_name: user-service
+    ports:
+      - "8084:8084"
+    env_file:
+      - .env
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-users:5432/foodrescue_users
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+    depends_on:
+      - eureka-server
+      - postgres-users
+    networks:
+      - foodrescue-network
+
+  notification-service:
+    build: ./notification-service
+    image: notification-service:1.0
+    container_name: notification-service
+    ports:
+      - "8085:8085"
+    env_file:
+      - .env
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
+    depends_on:
+      - eureka-server
+      - rabbitmq
+    networks:
+      - foodrescue-network
+
+  product-service:
+    build: ./product-service
+    image: product-service:1.0
+    container_name: product-service
+    ports:
+      - "8087:8087"
+    env_file:
+      - .env
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-products:5432/foodrescue_products
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+    depends_on:
+      - eureka-server
+      - postgres-products
+    networks:
+      - foodrescue-network
+
+# ================================
+# Réseau commun
+# ================================
+networks:
+  foodrescue-network:
+    driver: bridge
+
+# ================================
+# Volumes pour la persistance des données
+# ================================
+volumes:
+  postgres-offers-data:
+  postgres-reservations-data:
+  postgres-auth-data:
+  postgres-users-data:
+  postgres-products-data:
+  rabbitmq-data:

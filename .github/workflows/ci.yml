@@ -31,11 +31,11 @@ jobs:
         uses: actions/checkout@v4
 
       # 2. Configuration de l'environnement Java 17
-      - name: Set up Java 17
+      - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
           cache: 'maven'
 
       # 3. Compilation et packaging du microservice spécifique avec Maven

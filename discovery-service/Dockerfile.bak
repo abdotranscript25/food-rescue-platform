@@ -21,7 +21,7 @@ RUN mvn clean package -DskipTests
 # ÉTAPE 2 : Exécution (Runtime)
 # ==========================================
 # On utilise une image Java légère (JRE) pour exécuter l'application
-FROM eclipse-temurin:21-jre-jammy
+FROM eclipse-temurin:21-jre-alpine
 
 # On définit le dossier de travail
 WORKDIR /app

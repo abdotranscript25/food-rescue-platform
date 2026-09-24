@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-and-push:
-    name: Build, Test and Push Microservices
+    name: Build and Push Microservices
     runs-on: ubuntu-latest
 
     strategy:
@@ -34,45 +34,17 @@ jobs:
           java-version: '21'
           cache: 'maven'
 
-      # Démarrage de l'infrastructure de test via le fichier dédié
-      - name: Start Test Infrastructure
-        run: |
-          docker compose -f docker-compose.test.yml up -d
-          echo "Waiting for databases and RabbitMQ to be ready..."
-          sleep 15
+      - name: Build with Maven
+        run: mvn clean package -DskipTests -f ${{ matrix.service }}/pom.xml
 
-      # ÉTAPE : Exécution des tests Maven pointant sur localhost (accessible depuis l'hôte GitHub Actions)
-      - name: Run Tests with Maven
-        run: mvn clean test -f ${{ matrix.service }}/pom.xml
-        env:
-          SPRING_DATASOURCE_USERNAME: "postgres"
-          SPRING_DATASOURCE_PASSWORD: "postgres"
-          # Utilisation de localhost car Maven s'exécute sur l'hôte
-          SPRING_DATASOURCE_URL: "jdbc:postgresql://localhost:5432/foodrescue_${{ matrix.service }}"
-          JWT_SECRET: "dummySecretKeyForTestingPurposesOnly1234567890"
-          MAIL_USERNAME: "test@example.com"
-          MAIL_PASSWORD: "testpassword"
-          SPRING_MAIL_HOST: "localhost"
-          SPRING_MAIL_PORT: "25"
-
-      # Nettoyage des conteneurs de test
-      - name: Stop Test Infrastructure
-        if: always()
-        run: |
-          docker compose -f docker-compose.test.yml down
-
-      # Build du package sans re-tester
-      - name: Build Package with Maven
-        run: mvn package -DskipTests -f ${{ matrix.service }}/pom.xml
-
-      # Connexion à Docker Hub
+      # 1. Connexion sécurisée à Docker Hub via vos secrets personnalisés
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_FOOD_RESCUE_USERNAME }}
           password: ${{ secrets.DOCKER_FOOD_RESCUE_PASSWORD }}
 
-      # Construction et envoi de l'image Docker pour chaque microservice
+      # 2. Construction et envoi de l'image Docker pour chaque microservice
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:

@@ -3,8 +3,7 @@ services:
   # Service Discovery (Eureka)
   # ================================
   eureka-server:
-    build: ./discovery-service
-    image: discovery-service:1.0
+    image: abdo202/discovery-service:latest
     container_name: eureka-server
     ports:
       - "8761:8761"
@@ -100,8 +99,7 @@ services:
   # Microservices métier
   # ================================
   api-gateway:
-    build: ./api-gateway
-    image: api-gateway:1.0
+    image: abdo202/api-gateway:latest
     container_name: api-gateway
     ports:
       - "8080:8080"
@@ -115,8 +113,7 @@ services:
       - foodrescue-network
 
   offer-service:
-    build: ./offer-service
-    image: offer-service:1.0
+    image: abdo202/offer-service:latest
     container_name: offer-service
     ports:
       - "8081:8081"
@@ -134,8 +131,7 @@ services:
       - foodrescue-network
 
   reservation-service:
-    build: ./reservation-service
-    image: reservation-service:1.0
+    image: abdo202/reservation-service:latest
     container_name: reservation-service
     ports:
       - "8082:8082"
@@ -153,8 +149,7 @@ services:
       - foodrescue-network
 
   auth-service:
-    build: ./auth-service
-    image: auth-service:1.0
+    image: abdo202/auth-service:latest
     container_name: auth-service
     ports:
       - "8083:8083"
@@ -172,8 +167,7 @@ services:
       - foodrescue-network
 
   user-service:
-    build: ./user-service
-    image: user-service:1.0
+    image: abdo202/user-service:latest
     container_name: user-service
     ports:
       - "8084:8084"
@@ -191,8 +185,7 @@ services:
       - foodrescue-network
 
   notification-service:
-    build: ./notification-service
-    image: notification-service:1.0
+    image: abdo202/notification-service:latest
     container_name: notification-service
     ports:
       - "8085:8085"
@@ -211,8 +204,7 @@ services:
       - foodrescue-network
 
   product-service:
-    build: ./product-service
-    image: product-service:1.0
+    image: abdo202/product-service:latest
     container_name: product-service
     ports:
       - "8087:8087"

@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-and-push:
-    name: Build and Push Microservices
+    name: Build, Test and Push Microservices
     runs-on: ubuntu-latest
 
     strategy:
@@ -34,8 +34,13 @@ jobs:
           java-version: '21'
           cache: 'maven'
 
-      - name: Build with Maven
-        run: mvn clean package -DskipTests -f ${{ matrix.service }}/pom.xml
+      # ÉTAPE 1 : Exécution des tests unitaires et d'intégration
+      - name: Run Tests with Maven
+        run: mvn clean test -f ${{ matrix.service }}/pom.xml
+
+      # Build du package sans re-tester
+      - name: Build Package with Maven
+        run: mvn package -DskipTests -f ${{ matrix.service }}/pom.xml
 
       # 1. Connexion sécurisée à Docker Hub via vos secrets personnalisés
       - name: Log in to Docker Hub

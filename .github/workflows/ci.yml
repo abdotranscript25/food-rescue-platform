@@ -1,14 +1,21 @@
-name: CI/CD Pipeline - Food Rescue Platform
+name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "main", "develop" ]
   pull_request:
-    branches: [ main ]
+    branches: [ "main" ]
+
+env:
+  REGISTRY: docker.io
+  IMAGE_PREFIX: ${{ secrets.DOCKER_FOOD_RESCUE_USERNAME }}/food-rescue
 
 jobs:
-  test-build-push:
-    name: Test, Build & Push - ${{ matrix.service }}
+  # ==========================================
+  # JOB 1 : Build & Test tous les microservices
+  # ==========================================
+  build-and-test:
+    name: Build & Test
     runs-on: ubuntu-latest
 
     strategy:
@@ -18,82 +25,78 @@ jobs:
           - discovery-service
           - api-gateway
           - auth-service
-          - user-service
           - offer-service
           - reservation-service
-          - product-service
-          - notification-service
-
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: foodrescue_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      rabbitmq:
-        image: rabbitmq:3-management-alpine
-        ports:
-          - 5672:5672
-        options: >-
-          --health-cmd "rabbitmq-diagnostics -q ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     steps:
-      - name: Checkout Code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Java 21
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
           java-version: '21'
-          cache: 'maven'
+          distribution: 'temurin'
+          cache: maven
 
-      # ÉTAPE 1 : Tests + Package en une seule commande
-      - name: Test and Package
+      - name: Build & Test ${{ matrix.service }}
+        working-directory: ./${{ matrix.service }}
         env:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/foodrescue_test
-          SPRING_DATASOURCE_USERNAME: postgres
-          SPRING_DATASOURCE_PASSWORD: postgres
-          SPRING_RABBITMQ_HOST: localhost
-          SPRING_RABBITMQ_PORT: 5672
-          SPRING_RABBITMQ_USERNAME: guest
-          SPRING_RABBITMQ_PASSWORD: guest
-          EUREKA_CLIENT_ENABLED: "false"
-        run: mvn clean package -f ${{ matrix.service }}/pom.xml
+          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+        run: |
+          chmod +x mvnw
+          ./mvnw clean verify -DskipTests=false
 
-      # ÉTAPE 2 : Upload des résultats de tests (optionnel)
-      - name: Upload Test Results
+      - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results-${{ matrix.service }}
           path: ${{ matrix.service }}/target/surefire-reports/
+          retention-days: 7
 
-      # ÉTAPE 3 : Log in to Docker Hub
-      - name: Log in to Docker Hub
+  # ==========================================
+  # JOB 2 : Build & Push Docker images
+  # ==========================================
+  docker-build-push:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - discovery-service
+          - api-gateway
+          - auth-service
+          - offer-service
+          - reservation-service
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_FOOD_RESCUE_USERNAME }}
           password: ${{ secrets.DOCKER_FOOD_RESCUE_PASSWORD }}
 
-      # ÉTAPE 4 : Build and Push Docker Image
-      - name: Build and Push Docker Image
+      - name: Build & Push ${{ matrix.service }}
         uses: docker/build-push-action@v5
         with:
           context: ./${{ matrix.service }}
           file: ./${{ matrix.service }}/Dockerfile
           push: true
-          tags: abdo202/${{ matrix.service }}:latest
+          tags: |
+            ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:latest
+            ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

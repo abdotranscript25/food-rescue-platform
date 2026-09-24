@@ -15,3 +15,5 @@ build/
 .env
 .DS_Store
 Thumbs.db
+
+*.bak

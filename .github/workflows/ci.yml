@@ -34,10 +34,10 @@ jobs:
           java-version: '21'
           cache: 'maven'
 
-      # Démarrage de l'infrastructure indispensable (Bases de données & RabbitMQ)
-      - name: Start Infrastructure for Tests
+      # Démarrage de l'infrastructure de test via le fichier dédié
+      - name: Start Test Infrastructure
         run: |
-          docker compose up -d postgres-offers postgres-reservations postgres-auth postgres-users postgres-products rabbitmq
+          docker compose -f docker-compose.test.yml up -d
           echo "Waiting for databases and RabbitMQ to be ready..."
           sleep 15
 
@@ -45,11 +45,11 @@ jobs:
       - name: Run Tests with Maven
         run: mvn clean test -f ${{ matrix.service }}/pom.xml
 
-      # Nettoyage des conteneurs d'infrastructure
-      - name: Stop Infrastructure
+      # Nettoyage des conteneurs de test
+      - name: Stop Test Infrastructure
         if: always()
         run: |
-          docker compose down
+          docker compose -f docker-compose.test.yml down
 
       # Build du package sans re-tester
       - name: Build Package with Maven

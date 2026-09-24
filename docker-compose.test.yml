@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq-test
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - foodrescue-test-net
+
+  postgres-offers:
+    image: postgres:16
+    container_name: postgres-offers-test
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: foodrescue_offers
+    ports:
+      - "5432:5432"
+    networks:
+      - foodrescue-test-net
+
+  postgres-reservations:
+    image: postgres:16
+    container_name: postgres-reservations-test
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: foodrescue_reservations
+    ports:
+      - "5433:5432"
+    networks:
+      - foodrescue-test-net
+
+  postgres-auth:
+    image: postgres:16
+    container_name: postgres-auth-test
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: foodrescue_auth
+    ports:
+      - "5434:5432"
+    networks:
+      - foodrescue-test-net
+
+  postgres-users:
+    image: postgres:16
+    container_name: user-db-contain-test
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: foodrescue_users
+    ports:
+      - "5435:5432"
+    networks:
+      - foodrescue-test-net
+
+  postgres-products:
+    image: postgres:16
+    container_name: product-db-test
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: foodrescue_products
+    ports:
+      - "5437:5432"
+    networks:
+      - foodrescue-test-net
+
+networks:
+  foodrescue-test-net:
+    driver: bridge

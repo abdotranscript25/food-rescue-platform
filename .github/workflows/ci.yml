@@ -41,14 +41,14 @@ jobs:
           echo "Waiting for databases and RabbitMQ to be ready..."
           sleep 15
 
-      # ÉTAPE : Exécution des tests Maven avec injection des variables dynamiques de la base de données et des secrets
+      # ÉTAPE : Exécution des tests Maven pointant sur localhost (accessible depuis l'hôte GitHub Actions)
       - name: Run Tests with Maven
         run: mvn clean test -f ${{ matrix.service }}/pom.xml
         env:
           SPRING_DATASOURCE_USERNAME: "postgres"
           SPRING_DATASOURCE_PASSWORD: "postgres"
-          # Injection dynamique de l'URL selon le service testé dans la matrice
-          SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres-${{ matrix.service }}:5432/foodrescue_${{ matrix.service }}"
+          # Utilisation de localhost car Maven s'exécute sur l'hôte
+          SPRING_DATASOURCE_URL: "jdbc:postgresql://localhost:5432/foodrescue_${{ matrix.service }}"
           JWT_SECRET: "dummySecretKeyForTestingPurposesOnly1234567890"
           MAIL_USERNAME: "test@example.com"
           MAIL_PASSWORD: "testpassword"

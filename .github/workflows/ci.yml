@@ -1,0 +1,43 @@
+name: CI Pipeline - Food Rescue Platform
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-services:
+    name: Build Microservices
+    runs-on: ubuntu-latest
+
+    # Une "matrix" permet de lister tous vos services.
+    # Si vous ajoutez un nouveau service plus tard, il suffira de l'ajouter dans cette liste !
+    strategy:
+      matrix:
+        service:
+          - discovery-service
+          - api-gateway
+          - auth-service
+          - user-service
+          - offer-service
+          - reservation-service
+          - product-service
+          - notification-service
+
+    steps:
+      # 1. Récupération du code source depuis GitHub
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. Configuration de l'environnement Java 17
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
+
+      # 3. Compilation et packaging du microservice spécifique avec Maven
+      - name: Build with Maven
+        run: mvn clean package -DskipTests -f ${{ matrix.service }}/pom.xml

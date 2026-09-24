@@ -57,11 +57,11 @@ jobs:
       # Scan de vulnérabilités avec Trivy
       # ==========================================
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0  # <-- Correction : ajout du 'v'
         with:
           image-ref: 'abdo202/${{ matrix.service }}:latest'
           format: 'table'
-          exit-code: '0' # '0' = ne pas bloquer le pipeline, '1' = bloquer si vulnérabilité
+          exit-code: '0'
           ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'

@@ -34,9 +34,22 @@ jobs:
           java-version: '21'
           cache: 'maven'
 
-      # ÉTAPE 1 : Exécution des tests unitaires et d'intégration
+      # Démarrage de l'infrastructure indispensable (Bases de données & RabbitMQ)
+      - name: Start Infrastructure for Tests
+        run: |
+          docker compose up -d postgres-offers postgres-reservations postgres-auth postgres-users postgres-products rabbitmq
+          echo "Waiting for databases and RabbitMQ to be ready..."
+          sleep 15
+
+      # ÉTAPE 1 : Exécution des tests unitaires et d'intégration avec l'infra active
       - name: Run Tests with Maven
         run: mvn clean test -f ${{ matrix.service }}/pom.xml
+
+      # Nettoyage des conteneurs d'infrastructure
+      - name: Stop Infrastructure
+        if: always()
+        run: |
+          docker compose down
 
       # Build du package sans re-tester
       - name: Build Package with Maven

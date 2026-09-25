@@ -142,9 +142,14 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-reservations:5432/foodrescue_reservations
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
     depends_on:
       - eureka-server
       - postgres-reservations
+      - rabbitmq
     networks:
       - foodrescue-network
 
@@ -215,6 +220,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-products:5432/foodrescue_products
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: "false"
     depends_on:
       - eureka-server
       - postgres-products

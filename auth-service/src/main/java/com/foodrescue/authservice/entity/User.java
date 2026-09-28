@@ -38,6 +38,25 @@ public class User implements UserDetails {
     private Role role;
 
     // ==========================================
+    // AJOUT MFA : Champs pour l'authentification à deux facteurs
+    // ==========================================
+
+    /**
+     * Indique si le MFA est activé pour cet utilisateur.
+     * Par défaut : false (le login reste classique).
+     */
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean mfaEnabled = false;
+
+    /**
+     * Secret TOTP (clé partagée entre le serveur et l'app Google Authenticator).
+     * Nullable : null si le MFA n'est pas configuré.
+     */
+    @Column(length = 64)
+    private String mfaSecret;
+
+    // ==========================================
     // Méthodes requises par l'interface UserDetails
     // ==========================================
 

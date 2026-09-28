@@ -22,4 +22,11 @@ eureka:
 # Clé secrète JWT (surchargée par la variable d'environnement JWT_SECRET)
 jwt:
   secret: ${JWT_SECRET:MaCleSecreteParDefautPourLeDeveloppementLocalQuiDoitFaireAuMoins256BitsDeLongueur}
-  expiration: 86400000  # 24 heures en millisecondes
+  expiration: 86400000          # 24 heures en millisecondes
+  partial-expiration: 300000    # AJOUT MFA : 5 minutes (300000 ms) pour le token temporaire
+
+# AJOUT MFA : Configuration TOTP (Google Authenticator)
+mfa:
+  issuer: FoodRescue            # Nom affiché dans Google Authenticator
+  digits: 6                     # Nombre de chiffres du code OTP (standard : 6)
+  period: 30                    # Durée de validité d'un code (en secondes)

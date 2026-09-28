@@ -3,6 +3,9 @@ package com.foodrescue.authservice.service;
 import com.foodrescue.authservice.client.UserServiceClient;
 import com.foodrescue.authservice.dto.AuthResponse;
 import com.foodrescue.authservice.dto.LoginRequest;
+import com.foodrescue.authservice.dto.MfaSetupResponse;
+import com.foodrescue.authservice.dto.MfaValidateRequest;
+import com.foodrescue.authservice.dto.MfaVerifyRequest;
 import com.foodrescue.authservice.dto.RegisterRequest;
 import com.foodrescue.authservice.dto.UserProfileRequest;
 import com.foodrescue.authservice.entity.Role;
@@ -23,6 +26,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final UserServiceClient userServiceClient;
+    private final MfaService mfaService;   // AJOUT MFA
 
     // ==========================================
     // Inscription
@@ -66,11 +70,12 @@ public class AuthService {
                 .token(token)
                 .email(savedUser.getEmail())
                 .role(savedUser.getRole().name())
+                .mfaRequired(false)  // AJOUT MFA
                 .build();
     }
 
     // ==========================================
-    // Connexion
+    // Connexion (MODIFIÉE POUR MFA)
     // ==========================================
     public AuthResponse login(LoginRequest request) {
         // Authentifier via Spring Security
@@ -82,13 +87,122 @@ public class AuthService {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("Utilisateur introuvable."));
 
-        // Générer le token
+        // AJOUT MFA : Si MFA activé → renvoyer un partial token
+        if (user.isMfaEnabled()) {
+            String partialToken = jwtService.generatePartialToken(user.getEmail());
+            return AuthResponse.builder()
+                    .partialToken(partialToken)
+                    .email(user.getEmail())
+                    .role(user.getRole().name())
+                    .mfaRequired(true)
+                    .build();
+        }
+
+        // Sinon → comportement classique (token complet)
         String token = jwtService.generateToken(user);
 
         return AuthResponse.builder()
                 .token(token)
                 .email(user.getEmail())
                 .role(user.getRole().name())
+                .mfaRequired(false)
+                .build();
+    }
+
+    // ==========================================
+    // AJOUT MFA : Initialisation (Setup)
+    // ==========================================
+    /**
+     * Génère un nouveau secret TOTP pour l'utilisateur et retourne le QR code.
+     * Le MFA n'est PAS encore activé : il faut appeler mfaVerify() pour le confirmer.
+     */
+    public MfaSetupResponse mfaSetup(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Utilisateur introuvable."));
+
+        // Générer un nouveau secret et le stocker temporairement
+        String secret = mfaService.generateNewSecret();
+        user.setMfaSecret(secret);
+        userRepository.save(user);
+
+        // Générer le QR code + l'URL otpauth
+        String qrCodeImage = mfaService.generateQrCodeImage(secret, user.getEmail());
+        String otpauthUri = mfaService.generateQrCodeUri(secret, user.getEmail());
+
+        return MfaSetupResponse.builder()
+                .qrCodeImage(qrCodeImage)
+                .otpauthUri(otpauthUri)
+                .secret(secret)
+                .build();
+    }
+
+    // ==========================================
+    // AJOUT MFA : Vérification (Verify)
+    // ==========================================
+    /**
+     * Vérifie le premier code saisi par l'utilisateur pour confirmer l'activation du MFA.
+     * Si le code est correct → mfaEnabled passe à true.
+     */
+    public void mfaVerify(String email, MfaVerifyRequest request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Utilisateur introuvable."));
+
+        if (user.getMfaSecret() == null || user.getMfaSecret().isBlank()) {
+            throw new RuntimeException("Le MFA n'a pas été initialisé. Appelez /mfa/setup d'abord.");
+        }
+
+        if (!mfaService.verifyCode(user.getMfaSecret(), request.getCode())) {
+            throw new RuntimeException("Code MFA invalide.");
+        }
+
+        // Activer définitivement le MFA
+        user.setMfaEnabled(true);
+        userRepository.save(user);
+    }
+
+    // ==========================================
+    // AJOUT MFA : Validation (Validate)
+    // ==========================================
+    /**
+     * Valide le partial token + le code MFA lors de la connexion.
+     * Si tout est correct → génère le token JWT final.
+     */
+    public AuthResponse mfaValidate(MfaValidateRequest request) {
+        // 1. Vérifier que c'est bien un partial token
+        if (!jwtService.isPartialToken(request.getPartialToken())) {
+            throw new RuntimeException("Token partiel invalide.");
+        }
+
+        // 2. Vérifier que le token n'est pas expiré
+        if (jwtService.isTokenExpired(request.getPartialToken())) {
+            throw new RuntimeException("Token partiel expiré. Reconnectez-vous.");
+        }
+
+        // 3. Extraire l'email
+        String email = jwtService.extractUsername(request.getPartialToken());
+
+        // 4. Charger l'utilisateur
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Utilisateur introuvable."));
+
+        // 5. Vérifier que le MFA est bien activé
+        if (!user.isMfaEnabled() || user.getMfaSecret() == null) {
+            throw new RuntimeException("Le MFA n'est pas activé pour cet utilisateur.");
+        }
+
+        // 6. Vérifier le code MFA
+        if (!mfaService.verifyCode(user.getMfaSecret(), request.getCode())) {
+            throw new RuntimeException("Code MFA invalide.");
+        }
+
+        // 7. Tout est bon → générer le token JWT final
+        String token = jwtService.generateToken(user);
+
+        return AuthResponse.builder()
+                .token(token)
+                .email(user.getEmail())
+                .role(user.getRole().name())
+                .mfaRequired(false)
                 .build();
     }
 }

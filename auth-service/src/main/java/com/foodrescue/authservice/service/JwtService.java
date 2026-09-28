@@ -23,6 +23,9 @@ public class JwtService {
     @Value("${jwt.expiration}")
     private long jwtExpiration;
 
+    @Value("${jwt.partial-expiration}")  // AJOUT MFA
+    private long partialJwtExpiration;   // AJOUT MFA
+
     // ==========================================
     // 1. Génération du token
     // ==========================================
@@ -46,6 +49,45 @@ public class JwtService {
     }
 
     // ==========================================
+    // AJOUT MFA : Génération du token partiel
+    // ==========================================
+    /**
+     * Génère un token partiel valide 5 minutes.
+     * Ce token contient uniquement :
+     *  - L'email de l'utilisateur (subject)
+     *  - Le claim spécial "mfa_pending": true
+     * Il ne contient PAS les rôles.
+     * Il sert uniquement à l'étape de validation MFA.
+     */
+    public String generatePartialToken(String email) {
+        Map<String, Object> extraClaims = new HashMap<>();
+        extraClaims.put("mfa_pending", true);   // Marqueur clé
+        return Jwts.builder()
+                .claims(extraClaims)
+                .subject(email)
+                .issuedAt(new Date(System.currentTimeMillis()))
+                .expiration(new Date(System.currentTimeMillis() + partialJwtExpiration))
+                .signWith(getSignInKey())
+                .compact();
+    }
+
+    // ==========================================
+    // AJOUT MFA : Vérification du token partiel
+    // ==========================================
+    /**
+     * Vérifie si un token est un partial token MFA.
+     * @return true si le claim "mfa_pending" vaut true.
+     */
+    public boolean isPartialToken(String token) {
+        try {
+            Boolean mfaPending = extractClaim(token, claims -> claims.get("mfa_pending", Boolean.class));
+            return Boolean.TRUE.equals(mfaPending);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    // ==========================================
     // 2. Validation du token
     // ==========================================
     public boolean isTokenValid(String token, UserDetails userDetails) {
@@ -53,7 +95,7 @@ public class JwtService {
         return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
     }
 
-    private boolean isTokenExpired(String token) {
+    public boolean isTokenExpired(String token) {
         return extractExpiration(token).before(new Date());
     }
 

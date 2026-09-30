@@ -14,7 +14,11 @@ public class AuthResponse {
     private String email;
     private String role;
 
-    // AJOUT MFA
-    private String partialToken;       // Rempli uniquement si MFA activé (login étape 1)
-    private boolean mfaRequired;       // true si l'utilisateur doit valider le MFA
+    // AJOUT : Informations utilisateur
+    private String firstName;
+    private String lastName;
+
+    // MFA
+    private String partialToken;
+    private boolean mfaRequired;
 }

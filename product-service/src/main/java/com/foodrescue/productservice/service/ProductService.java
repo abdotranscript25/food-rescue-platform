@@ -20,6 +20,7 @@ public class ProductService {
                 .name(request.getName())
                 .category(request.getCategory())
                 .description(request.getDescription())
+                .imageUrl(request.getImageUrl())
                 .allergens(request.getAllergens())
                 .isPerishable(request.getIsPerishable())
                 .build();
@@ -46,12 +47,41 @@ public class ProductService {
                 .toList();
     }
 
+    // ==========================================
+    // AJOUT : Mise à jour
+    // ==========================================
+    public ProductResponse updateProduct(Long id, ProductRequest request) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Produit introuvable avec l'ID: " + id));
+
+        if (request.getName() != null) product.setName(request.getName());
+        if (request.getCategory() != null) product.setCategory(request.getCategory());
+        if (request.getDescription() != null) product.setDescription(request.getDescription());
+        if (request.getImageUrl() != null) product.setImageUrl(request.getImageUrl());
+        if (request.getAllergens() != null) product.setAllergens(request.getAllergens());
+        if (request.getIsPerishable() != null) product.setIsPerishable(request.getIsPerishable());
+
+        Product updated = productRepository.save(product);
+        return mapToResponse(updated);
+    }
+
+    // ==========================================
+    // AJOUT : Suppression
+    // ==========================================
+    public void deleteProduct(Long id) {
+        if (!productRepository.existsById(id)) {
+            throw new RuntimeException("Produit introuvable avec l'ID: " + id);
+        }
+        productRepository.deleteById(id);
+    }
+
     private ProductResponse mapToResponse(Product product) {
         return ProductResponse.builder()
                 .id(product.getId())
                 .name(product.getName())
                 .category(product.getCategory())
                 .description(product.getDescription())
+                .imageUrl(product.getImageUrl())
                 .allergens(product.getAllergens())
                 .isPerishable(product.getIsPerishable())
                 .createdAt(product.getCreatedAt())

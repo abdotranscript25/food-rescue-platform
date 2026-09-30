@@ -23,22 +23,22 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        // 1. Autoriser la création initiale de profil (lors du register dans auth-service ou appel interne)
-                        .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
+                        // 1. Création initiale de profil (appelée par auth-service)
+                        .requestMatchers(HttpMethod.POST, "/api/users/profiles").permitAll()
 
-                        // 2. Consultation/lecture des profils par d'autres services ou par l'utilisateur authentifié
+                        // 2. Lecture des profils (par d'autres services ou utilisateur authentifié)
                         .requestMatchers(HttpMethod.GET, "/api/users/**").authenticated()
 
-                        // 3. Modification de profil nécessitant d'être authentifié
+                        // 3. Modification de profil
                         .requestMatchers(HttpMethod.PUT, "/api/users/**").authenticated()
 
-                        // 4. Seul un ADMIN peut supprimer un profil utilisateur
+                        // 4. Suppression : ADMIN uniquement
                         .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasRole("ADMIN")
 
-                        // 5. Actuator pour le monitoring
+                        // 5. Actuator
                         .requestMatchers("/actuator/**").permitAll()
 
-                        // Toutes les autres requêtes nécessitent d'être authentifié
+                        // 6. Tout le reste
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

@@ -23,16 +23,20 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        // Utilisation de hasAnyAuthority / hasAuthority pour correspondre exactement aux rôles du JWT (avec le préfixe ROLE_)
-                        .requestMatchers(HttpMethod.POST, "/api/reservations/**").hasAnyAuthority("ROLE_USER", "ROLE_MERCHANT", "ROLE_ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/reservations/**").hasAnyAuthority("ROLE_USER", "ROLE_MERCHANT", "ROLE_ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/reservations/**").hasAnyAuthority("ROLE_USER", "ROLE_MERCHANT", "ROLE_ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/reservations/**").hasAuthority("ROLE_ADMIN")
+                        // CORRECTION : ROLE_USER → ROLE_CONSUMER
+                        .requestMatchers(HttpMethod.POST, "/api/reservations/**")
+                        .hasAnyAuthority("ROLE_CONSUMER", "ROLE_MERCHANT", "ROLE_ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/reservations/**")
+                        .hasAnyAuthority("ROLE_CONSUMER", "ROLE_MERCHANT", "ROLE_ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/reservations/**")
+                        .hasAnyAuthority("ROLE_CONSUMER", "ROLE_MERCHANT", "ROLE_ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/reservations/**")
+                        .hasAuthority("ROLE_ADMIN")
 
-                        // Actuator (monitoring)
+                        // Actuator
                         .requestMatchers("/actuator/**").permitAll()
 
-                        // Toutes les autres routes nécessitent d'être authentifié
+                        // Tout le reste
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

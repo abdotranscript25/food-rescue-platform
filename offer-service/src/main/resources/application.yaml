@@ -21,6 +21,6 @@ eureka:
     service-url:
       defaultZone: http://localhost:8761/eureka/
 
-  jwt:
-    secret: ${JWT_SECRET:MaCleSecreteParDefautPourLeDeveloppementLocalQuiDoitFaireAuMoins256BitsDeLongueur}
-    expiration: 86400000  # 24 heures en millisecondes
+jwt:
+  secret: ${JWT_SECRET:MaCleSecreteParDefautPourLeDeveloppementLocalQuiDoitFaireAuMoins256BitsDeLongueur}
+  expiration: 86400000  # 24 heures en millisecondes

@@ -5,7 +5,7 @@ spring:
   application:
     name: user-service
   datasource:
-    url: jdbc:postgresql://localhost:5435/user_db
+    url: jdbc:postgresql://localhost:5435/foodrescue_users   # ← CORRIGÉ
     username: postgres
     password: postgrespassword
     driver-class-name: org.postgresql.Driver
@@ -24,6 +24,6 @@ eureka:
   instance:
     prefer-ip-address: true
 
-  jwt:
-    secret: ${JWT_SECRET:MaCleSecreteParDefautPourLeDeveloppementLocalQuiDoitFaireAuMoins256BitsDeLongueur}
-    expiration: 86400000  # 24 heures en millisecondes
+jwt:
+  secret: ${JWT_SECRET:MaCleSecreteParDefautPourLeDeveloppementLocalQuiDoitFaireAuMoins256BitsDeLongueur}
+  expiration: 86400000 # 24 HEURES EN Ms

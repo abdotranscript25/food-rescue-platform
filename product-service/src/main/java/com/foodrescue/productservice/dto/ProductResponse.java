@@ -13,6 +13,10 @@ public class ProductResponse {
     private String name;
     private String category;
     private String description;
+
+    // AJOUT : URL de l'image
+    private String imageUrl;
+
     private String allergens;
     private Boolean isPerishable;
     private LocalDateTime createdAt;

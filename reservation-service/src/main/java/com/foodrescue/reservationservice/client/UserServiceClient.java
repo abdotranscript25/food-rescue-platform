@@ -6,12 +6,14 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
-@FeignClient(name = "USER-SERVICE", configuration = FeignConfig.class)
+@FeignClient(name = "user-service", configuration = FeignConfig.class)
 public interface UserServiceClient {
 
-    @GetMapping("/api/users/{id}")
+    // AJOUT : chemin /api/users/profiles/{id} (au lieu de /api/users/{id})
+    @GetMapping("/api/users/profiles/{id}")
     UserProfileResponse getUserById(@PathVariable("id") Long id);
 
-    @GetMapping("/api/users/email/{email}")
+    // AJOUT : chemin /api/users/profiles/email/{email}
+    @GetMapping("/api/users/profiles/email/{email}")
     UserProfileResponse getUserByEmail(@PathVariable("email") String email);
 }

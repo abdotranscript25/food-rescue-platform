@@ -9,11 +9,15 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/api/users/profiles")
 public class UserProfileController {
 
     @Autowired
     private UserProfileRepository userProfileRepository;
+
+    // ==========================================
+    // Lecture
+    // ==========================================
 
     @GetMapping
     public List<UserProfile> getAllProfiles() {
@@ -34,17 +38,27 @@ public class UserProfileController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    // ==========================================
+    // Création (appelée par auth-service lors du register)
+    // ==========================================
+
     @PostMapping
     public UserProfile createProfile(@RequestBody UserProfile profile) {
         return userProfileRepository.save(profile);
     }
 
+    // ==========================================
+    // Mise à jour
+    // ==========================================
+
     @PutMapping("/{id}")
     public ResponseEntity<UserProfile> updateProfile(@PathVariable Long id, @RequestBody UserProfile updatedData) {
         return userProfileRepository.findById(id)
                 .map(existingProfile -> {
-                    if (updatedData.getFullName() != null) existingProfile.setFullName(updatedData.getFullName());
-                    if (updatedData.getPhoneNumber() != null) existingProfile.setPhoneNumber(updatedData.getPhoneNumber());
+                    // AJOUT : firstName / lastName / phone
+                    if (updatedData.getFirstName() != null) existingProfile.setFirstName(updatedData.getFirstName());
+                    if (updatedData.getLastName() != null) existingProfile.setLastName(updatedData.getLastName());
+                    if (updatedData.getPhone() != null) existingProfile.setPhone(updatedData.getPhone());
                     if (updatedData.getAddress() != null) existingProfile.setAddress(updatedData.getAddress());
                     if (updatedData.getCity() != null) existingProfile.setCity(updatedData.getCity());
                     return ResponseEntity.ok(userProfileRepository.save(existingProfile));

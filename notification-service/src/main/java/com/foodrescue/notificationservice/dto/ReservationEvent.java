@@ -13,6 +13,6 @@ public class ReservationEvent implements Serializable {
     private String reservationId;
     private String offerId;
     private String userEmail;
-    private String status;  // Exemples : "CREATED", "CANCELLED"
+    private String status;  // "CREATED", "CANCELLED" ou "COMPLETED"
     private String message;
 }

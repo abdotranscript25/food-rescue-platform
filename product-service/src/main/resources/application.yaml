@@ -3,9 +3,9 @@ server:
 
 spring:
   application:
-    name: PRODUCT-SERVICE
+    name: product-service
   datasource:
-    url: jdbc:postgresql://localhost:5437/product_db
+    url: jdbc:postgresql://localhost:5437/foodrescue_products
     username: postgres
     password: postgrespassword
     driver-class-name: org.postgresql.Driver

@@ -19,13 +19,24 @@ public class UserProfile {
     @Id
     private Long id; // Identifiant synchronisé avec auth-service
 
+    // ==========================================
+    // AJOUT : firstName / lastName (au lieu de fullName)
+    // ==========================================
     @Column(nullable = false)
-    private String fullName;
+    private String firstName;
+
+    @Column(nullable = false)
+    private String lastName;
 
     @Column(nullable = false, unique = true)
     private String email;
 
-    private String phoneNumber;
+    // ==========================================
+    // AJOUT : phone (au lieu de phoneNumber)
+    // ==========================================
+    @Column(length = 20)
+    private String phone;
+
     private String address;
     private String city;
 

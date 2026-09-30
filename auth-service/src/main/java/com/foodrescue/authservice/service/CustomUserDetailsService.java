@@ -1,5 +1,6 @@
 package com.foodrescue.authservice.service;
 
+import com.foodrescue.authservice.entity.User;
 import com.foodrescue.authservice.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -15,7 +16,12 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        return userRepository.findByEmail(email)
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Utilisateur introuvable avec l'email : " + email));
+
+        // AJOUT : Refuser les comptes non-actifs
+        // (Spring Security va automatiquement bloquer si isEnabled() == false)
+
+        return user;
     }
 }

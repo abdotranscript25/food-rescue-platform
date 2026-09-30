@@ -9,6 +9,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 
@@ -24,35 +25,53 @@ public class User implements UserDetails {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // ==========================================
+    // AJOUT : firstName / lastName (au lieu de fullName)
+    // ==========================================
+    @Column(nullable = false)
+    private String firstName;
+
+    @Column(nullable = false)
+    private String lastName;
+
     @Column(unique = true, nullable = false)
     private String email;
 
     @Column(nullable = false)
     private String password;
 
-    @Column(nullable = false)
-    private String fullName;
+    // ==========================================
+    // AJOUT : Phone
+    // ==========================================
+    @Column(length = 20)
+    private String phone;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;
 
     // ==========================================
-    // AJOUT MFA : Champs pour l'authentification à deux facteurs
+    // AJOUT : Statut du compte
     // ==========================================
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private UserStatus status = UserStatus.ACTIVE;
 
-    /**
-     * Indique si le MFA est activé pour cet utilisateur.
-     * Par défaut : false (le login reste classique).
-     */
+    // ==========================================
+    // AJOUT : Date de création (audit)
+    // ==========================================
+    @Column(nullable = false, updatable = false)
+    @Builder.Default
+    private LocalDateTime createdAt = LocalDateTime.now();
+
+    // ==========================================
+    // MFA (déjà existant)
+    // ==========================================
     @Column(nullable = false)
     @Builder.Default
     private boolean mfaEnabled = false;
 
-    /**
-     * Secret TOTP (clé partagée entre le serveur et l'app Google Authenticator).
-     * Nullable : null si le MFA n'est pas configuré.
-     */
     @Column(length = 64)
     private String mfaSecret;
 
@@ -67,7 +86,7 @@ public class User implements UserDetails {
 
     @Override
     public String getUsername() {
-        return email; // On utilise l'email comme identifiant
+        return email;
     }
 
     @Override
@@ -77,7 +96,7 @@ public class User implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return true;
+        return status != UserStatus.SUSPENDED;   // AJOUT : bloqué si suspendu
     }
 
     @Override
@@ -87,6 +106,6 @@ public class User implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return status == UserStatus.ACTIVE;      // AJOUT : activé seulement si ACTIVE
     }
 }

@@ -12,13 +12,18 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class RegisterRequest {
 
-    private String fullName;
+    // AJOUT : firstName / lastName (au lieu de fullName)
+    private String firstName;
+    private String lastName;
+
     private String email;
     private String password;
     private Role role;
 
-    // Nouveaux champs pour la synchronisation avec user-service
-    private String phoneNumber;
+    // AJOUT : Phone
+    private String phone;
+
+    // Champs pour la synchronisation avec user-service
     private String address;
     private String city;
 }

@@ -18,10 +18,18 @@ public class ProductController {
 
     private final ProductService productService;
 
+    // ==========================================
+    // Création (MERCHANT ou ADMIN)
+    // ==========================================
+
     @PostMapping
     public ResponseEntity<ProductResponse> createProduct(@Valid @RequestBody ProductRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(productService.createProduct(request));
     }
+
+    // ==========================================
+    // Lecture (public)
+    // ==========================================
 
     @GetMapping
     public ResponseEntity<List<ProductResponse>> getAllProducts() {
@@ -36,5 +44,27 @@ public class ProductController {
     @GetMapping("/category/{category}")
     public ResponseEntity<List<ProductResponse>> getProductsByCategory(@PathVariable String category) {
         return ResponseEntity.ok(productService.getProductsByCategory(category));
+    }
+
+    // ==========================================
+    // AJOUT : Mise à jour (MERCHANT ou ADMIN)
+    // ==========================================
+
+    @PutMapping("/{id}")
+    public ResponseEntity<ProductResponse> updateProduct(
+            @PathVariable Long id,
+            @Valid @RequestBody ProductRequest request
+    ) {
+        return ResponseEntity.ok(productService.updateProduct(id, request));
+    }
+
+    // ==========================================
+    // AJOUT : Suppression (ADMIN)
+    // ==========================================
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
+        productService.deleteProduct(id);
+        return ResponseEntity.noContent().build();
     }
 }

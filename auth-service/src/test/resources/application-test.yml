@@ -1,0 +1,35 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+    show-sql: false
+    open-in-view: false
+  cloud:
+    discovery:
+      enabled: false
+  main:
+    allow-bean-definition-overriding: true
+
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false
+
+jwt:
+  secret: dGVzdHNlY3JldGtleWZvcnRlc3Rpbmdvbmx5d2l0aDMyK2NoYXJzMTIzNDU2
+  expiration: 86400000
+  partial-expiration: 300000
+
+mfa:
+  issuer: FoodRescueTest
+  digits: 6
+  period: 30
+
+MAIL_USERNAME: test@example.com

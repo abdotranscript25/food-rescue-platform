@@ -21,13 +21,18 @@ public class Product {
     @Column(nullable = false)
     private String name;
 
-    private String category; // ex: Boulangerie, Fruits & Légumes, Plats Cuisinés
+    private String category;
 
     @Column(length = 1000)
     private String description;
 
-    private String allergens; // ex: Gluten, Lactose, Arachides
+    // AJOUT : URL de l'image du produit
+    @Column(name = "image_url", length = 500)
+    private String imageUrl;
 
+    private String allergens;
+
+    @Builder.Default
     private Boolean isPerishable = true;
 
     @Column(name = "created_at", updatable = false)

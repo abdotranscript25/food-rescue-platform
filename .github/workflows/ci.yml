@@ -34,8 +34,11 @@ jobs:
           java-version: '21'
           cache: 'maven'
 
-      - name: Build with Maven
-        run: mvn clean package -DskipTests -f ${{ matrix.service }}/pom.xml
+      # ==========================================
+      # MODIFICATION : Tests activés (retrait de -DskipTests)
+      # ==========================================
+      - name: Build and Test with Maven
+        run: mvn clean package -f ${{ matrix.service }}/pom.xml
 
       # 1. Connexion sécurisée à Docker Hub via vos secrets personnalisés
       - name: Log in to Docker Hub
@@ -57,7 +60,7 @@ jobs:
       # Scan de vulnérabilités avec Trivy
       # ==========================================
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@v0.36.0  # <-- Correction : ajout du 'v'
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: 'abdo202/${{ matrix.service }}:latest'
           format: 'table'

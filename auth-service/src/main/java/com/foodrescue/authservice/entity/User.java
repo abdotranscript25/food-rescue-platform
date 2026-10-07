@@ -26,7 +26,7 @@ public class User implements UserDetails {
     private Long id;
 
     // ==========================================
-    // AJOUT : firstName / lastName (au lieu de fullName)
+    // Informations personnelles
     // ==========================================
     @Column(nullable = false)
     private String firstName;
@@ -40,9 +40,6 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private String password;
 
-    // ==========================================
-    // AJOUT : Phone
-    // ==========================================
     @Column(length = 20)
     private String phone;
 
@@ -51,7 +48,7 @@ public class User implements UserDetails {
     private Role role;
 
     // ==========================================
-    // AJOUT : Statut du compte
+    // Statut du compte
     // ==========================================
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -59,14 +56,14 @@ public class User implements UserDetails {
     private UserStatus status = UserStatus.ACTIVE;
 
     // ==========================================
-    // AJOUT : Date de création (audit)
+    // Date de création (audit)
     // ==========================================
     @Column(nullable = false, updatable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
     // ==========================================
-    // MFA (déjà existant)
+    // MFA & Anti-Rejeu
     // ==========================================
     @Column(nullable = false)
     @Builder.Default
@@ -74,6 +71,10 @@ public class User implements UserDetails {
 
     @Column(length = 64)
     private String mfaSecret;
+
+    // AJOUT : Fenêtre temporelle du dernier OTP validé (Anti-Rejeu)
+    @Column
+    private Long lastUsedOtpWindow;
 
     // ==========================================
     // Méthodes requises par l'interface UserDetails
@@ -96,7 +97,7 @@ public class User implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return status != UserStatus.SUSPENDED;   // AJOUT : bloqué si suspendu
+        return status != UserStatus.SUSPENDED;
     }
 
     @Override
@@ -106,6 +107,6 @@ public class User implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return status == UserStatus.ACTIVE;      // AJOUT : activé seulement si ACTIVE
+        return status == UserStatus.ACTIVE;
     }
 }

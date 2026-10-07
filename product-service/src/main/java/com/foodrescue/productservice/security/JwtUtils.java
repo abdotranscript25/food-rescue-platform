@@ -8,6 +8,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 public class JwtUtils {
@@ -36,5 +39,27 @@ public class JwtUtils {
                 .parseClaimsJws(token)
                 .getBody();
         return claims.getSubject();
+    }
+
+    // ⬇️ NOUVELLE MÉTHODE : Extraire les rôles depuis le claim "roles"
+    public List<String> getRolesFromJwtToken(String token) {
+        try {
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(getSigningKey())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+
+            List<?> roles = claims.get("roles", List.class);
+            if (roles == null) {
+                return Collections.emptyList();
+            }
+
+            return roles.stream()
+                    .map(Object::toString)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            return Collections.emptyList();
+        }
     }
 }

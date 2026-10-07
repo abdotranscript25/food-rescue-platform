@@ -11,10 +11,8 @@ public class ProductRequest {
 
     private String category;
     private String description;
-
-    // AJOUT : URL de l'image
     private String imageUrl;
-
     private String allergens;
     private Boolean isPerishable = true;
+    private Long merchantId;
 }

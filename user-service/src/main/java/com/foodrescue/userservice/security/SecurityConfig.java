@@ -26,19 +26,22 @@ public class SecurityConfig {
                         // 1. Création initiale de profil (appelée par auth-service)
                         .requestMatchers(HttpMethod.POST, "/api/users/profiles").permitAll()
 
-                        // 2. Lecture des profils (par d'autres services ou utilisateur authentifié)
-                        .requestMatchers(HttpMethod.GET, "/api/users/**").authenticated()
+                        // 2. Lecture des profils : réservée aux rôles authentifiés (avec ou sans préfixe ROLE_)
+                        .requestMatchers(HttpMethod.GET, "/api/users/**").hasAnyAuthority(
+                                "ROLE_CONSUMER", "ROLE_MERCHANT", "ROLE_ADMIN",
+                                "CONSUMER", "MERCHANT", "ADMIN"
+                        )
 
-                        // 3. Modification de profil
+                        // 3. Modification de profil : sécurisée par authentification
                         .requestMatchers(HttpMethod.PUT, "/api/users/**").authenticated()
 
                         // 4. Suppression : ADMIN uniquement
-                        .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
 
-                        // 5. Actuator
+                        // 5. Actuator (monitoring)
                         .requestMatchers("/actuator/**").permitAll()
 
-                        // 6. Tout le reste
+                        // 6. Tout le reste nécessite d'être authentifié
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

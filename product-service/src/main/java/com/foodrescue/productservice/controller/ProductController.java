@@ -36,6 +36,15 @@ public class ProductController {
         return ResponseEntity.ok(productService.getAllProducts());
     }
 
+    // ==========================================
+    // AJOUT : Récupération par Marchand
+    // ==========================================
+
+    @GetMapping("/merchant/{merchantId}")
+    public ResponseEntity<List<ProductResponse>> getProductsByMerchant(@PathVariable Long merchantId) {
+        return ResponseEntity.ok(productService.getProductsByMerchant(merchantId));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ProductResponse> getProductById(@PathVariable Long id) {
         return ResponseEntity.ok(productService.getProductById(id));

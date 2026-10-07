@@ -27,17 +27,15 @@ public class SecurityConfig {
                         // 1. GET : public
                         .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
 
-                        // 2. POST/PUT : MERCHANT ou ADMIN uniquement
+                        // 2. POST / PUT / DELETE : MERCHANT ou ADMIN uniquement
                         .requestMatchers(HttpMethod.POST, "/api/products/**").hasAnyAuthority("ROLE_MERCHANT", "ROLE_ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/products/**").hasAnyAuthority("ROLE_MERCHANT", "ROLE_ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/products/**").hasAnyAuthority("ROLE_MERCHANT", "ROLE_ADMIN")
 
-                        // 3. DELETE : ADMIN uniquement
-                        .requestMatchers(HttpMethod.DELETE, "/api/products/**").hasAuthority("ROLE_ADMIN")
-
-                        // 4. Actuator
+                        // 3. Actuator
                         .requestMatchers("/actuator/**").permitAll()
 
-                        // 5. Tout le reste nécessite un token
+                        // 4. Tout le reste nécessite un token
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

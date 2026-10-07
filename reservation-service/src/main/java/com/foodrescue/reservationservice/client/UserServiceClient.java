@@ -9,11 +9,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 @FeignClient(name = "user-service", configuration = FeignConfig.class)
 public interface UserServiceClient {
 
-    // AJOUT : chemin /api/users/profiles/{id} (au lieu de /api/users/{id})
     @GetMapping("/api/users/profiles/{id}")
     UserProfileResponse getUserById(@PathVariable("id") Long id);
 
-    // AJOUT : chemin /api/users/profiles/email/{email}
     @GetMapping("/api/users/profiles/email/{email}")
     UserProfileResponse getUserByEmail(@PathVariable("email") String email);
 }

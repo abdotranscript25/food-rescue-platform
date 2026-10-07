@@ -34,7 +34,8 @@ public class SecurityConfig {
                 // 2. Définir les règles d'autorisation
                 .authorizeHttpRequests(auth -> auth
                         // Routes publiques (accessibles sans token)
-                        .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
+                        .requestMatchers("/api/auth/**").permitAll()      // ⬅️ élargi
+                        .requestMatchers("/error").permitAll()            // ⬅️ AJOUTER
                         .requestMatchers("/api/auth/mfa/validate").permitAll()  // AJOUT MFA
                         .requestMatchers("/actuator/**").permitAll()
                         // Toutes les autres routes nécessitent un token valide

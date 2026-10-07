@@ -7,7 +7,7 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5435/foodrescue_users   # ← CORRIGÉ
     username: postgres
-    password: postgrespassword
+    password: postgres
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:

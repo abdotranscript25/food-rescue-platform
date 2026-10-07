@@ -35,9 +35,11 @@ public class JwtService {
     public List<SimpleGrantedAuthority> extractAuthorities(String token) {
         Claims claims = extractAllClaims(token);
         Object rolesObj = claims.get("roles");
+
         if (rolesObj instanceof List<?> rolesList) {
             return rolesList.stream()
                     .map(Object::toString)
+                    .map(role -> role.startsWith("ROLE_") ? role : "ROLE_" + role) // Normalisation robuste du préfixe
                     .map(SimpleGrantedAuthority::new)
                     .collect(Collectors.toList());
         }
@@ -49,7 +51,6 @@ public class JwtService {
         return claimsResolver.apply(claims);
     }
 
-    // Méthode compatible JJWT 0.11.x
     private Claims extractAllClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(getSignInKey())

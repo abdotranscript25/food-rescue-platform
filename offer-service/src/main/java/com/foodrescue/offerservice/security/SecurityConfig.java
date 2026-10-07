@@ -34,17 +34,15 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/offers/*/publish").hasAnyAuthority("ROLE_MERCHANT", "ROLE_ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/offers/*/cancel").hasAnyAuthority("ROLE_MERCHANT", "ROLE_ADMIN")
 
-                        // 4. CRUD : MERCHANT ou ADMIN
+                        // 4. CRUD (Création, Modification, Suppression) : MERCHANT ou ADMIN
                         .requestMatchers(HttpMethod.POST, "/api/offers/**").hasAnyAuthority("ROLE_MERCHANT", "ROLE_ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/offers/**").hasAnyAuthority("ROLE_MERCHANT", "ROLE_ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/offers/**").hasAnyAuthority("ROLE_MERCHANT", "ROLE_ADMIN")
 
-                        // 5. Suppression : ADMIN uniquement
-                        .requestMatchers(HttpMethod.DELETE, "/api/offers/**").hasAuthority("ROLE_ADMIN")
-
-                        // 6. Actuator (monitoring)
+                        // 5. Actuator (monitoring)
                         .requestMatchers("/actuator/**").permitAll()
 
-                        // 7. Tout le reste nécessite un token
+                        // 6. Tout le reste nécessite un token
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

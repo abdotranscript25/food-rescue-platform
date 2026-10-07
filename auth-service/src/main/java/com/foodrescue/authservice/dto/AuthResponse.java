@@ -6,19 +6,15 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
 @Builder
+@AllArgsConstructor
+@NoArgsConstructor
 public class AuthResponse {
     private String token;
+    private String partialToken; // ⬅️ Nécessaire pour le retour MFA
     private String email;
     private String role;
-
-    // AJOUT : Informations utilisateur
     private String firstName;
     private String lastName;
-
-    // MFA
-    private String partialToken;
-    private boolean mfaRequired;
+    private boolean mfaRequired; // ⬅️ Aligné avec mfaRequired(...) utilisé dans AuthService
 }

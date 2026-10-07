@@ -1,5 +1,7 @@
 package com.foodrescue.offerservice.controller;
 
+import com.foodrescue.offerservice.client.ProductClient;
+import com.foodrescue.offerservice.dto.ProductResponseDto;
 import com.foodrescue.offerservice.entity.Offer;
 import com.foodrescue.offerservice.entity.OfferStatus;
 import com.foodrescue.offerservice.repository.OfferRepository;
@@ -10,6 +12,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/offers")
@@ -18,47 +21,60 @@ public class OfferController {
     @Autowired
     private OfferRepository offerRepository;
 
+    @Autowired
+    private ProductClient productClient;
+
+    // Méthode utilitaire pour attacher le produit à l'offre
+    private Offer enrichOfferWithProduct(Offer offer) {
+        if (offer.getProductId() != null) {
+            try {
+                ProductResponseDto product = productClient.getProductById(offer.getProductId());
+                offer.setProduct(product);
+            } catch (Exception e) {
+                // Gérer le cas échéant si le produit n'est pas trouvé
+            }
+        }
+        return offer;
+    }
+
     // ==========================================
     // Lecture : offres publiques
     // ==========================================
 
-    /**
-     * Liste TOUTES les offres (usage admin / debug).
-     */
     @GetMapping
     public List<Offer> getAllOffers() {
-        return offerRepository.findAll();
+        return offerRepository.findAll().stream()
+                .map(this::enrichOfferWithProduct)
+                .collect(Collectors.toList());
     }
 
-    /**
-     * Liste uniquement les offres disponibles (à afficher aux clients).
-     */
     @GetMapping("/available")
     public List<Offer> getAvailableOffers() {
         return offerRepository.findByStatusAndRemainingQuantityGreaterThan(
-                OfferStatus.AVAILABLE, 0);
+                        OfferStatus.AVAILABLE, 0).stream()
+                .map(this::enrichOfferWithProduct)
+                .collect(Collectors.toList());
     }
 
-    /**
-     * Filtre par statut.
-     */
     @GetMapping("/status/{status}")
     public List<Offer> getOffersByStatus(@PathVariable OfferStatus status) {
-        return offerRepository.findByStatus(status);
+        return offerRepository.findByStatus(status).stream()
+                .map(this::enrichOfferWithProduct)
+                .collect(Collectors.toList());
     }
 
-    /**
-     * Filtre par merchant.
-     */
     @GetMapping("/merchant/{merchantId}")
     public List<Offer> getOffersByMerchant(@PathVariable Long merchantId) {
-        return offerRepository.findByMerchantId(merchantId);
+        return offerRepository.findByMerchantId(merchantId).stream()
+                .map(this::enrichOfferWithProduct)
+                .collect(Collectors.toList());
     }
 
     @GetMapping("/{id}")
     public Offer getOfferById(@PathVariable Long id) {
-        return offerRepository.findById(id)
+        Offer offer = offerRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Offre introuvable"));
+        return enrichOfferWithProduct(offer);
     }
 
     // ==========================================
@@ -74,7 +90,6 @@ public class OfferController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La quantité doit être > 0.");
         }
 
-        // Initialiser les valeurs par défaut
         if (offer.getRemainingQuantity() == null) {
             offer.setRemainingQuantity(offer.getQuantity());
         }
@@ -82,12 +97,66 @@ public class OfferController {
             offer.setAvailableFrom(LocalDateTime.now());
         }
         if (offer.getStatus() == null) {
-            offer.setStatus(OfferStatus.AVAILABLE); // Par défaut : directement disponible
+            offer.setStatus(OfferStatus.AVAILABLE);
         }
 
-        return offerRepository.save(offer);
+        Offer savedOffer = offerRepository.save(offer);
+        return enrichOfferWithProduct(savedOffer);
     }
 
+    // ==========================================
+    // Modification : merchant ou admin
+    // ==========================================
+
+    @PutMapping("/{id}")
+    public Offer updateOffer(@PathVariable Long id, @RequestBody Offer offerDetails) {
+        Offer offer = offerRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Offre introuvable"));
+
+        if (offerDetails.getProductId() != null) {
+            offer.setProductId(offerDetails.getProductId());
+        }
+        if (offerDetails.getTitle() != null) {
+            offer.setTitle(offerDetails.getTitle());
+        }
+        if (offerDetails.getDescription() != null) {
+            offer.setDescription(offerDetails.getDescription());
+        }
+        if (offerDetails.getOriginalPrice() != null) {
+            offer.setOriginalPrice(offerDetails.getOriginalPrice());
+        }
+        if (offerDetails.getDiscountedPrice() != null) {
+            offer.setDiscountedPrice(offerDetails.getDiscountedPrice());
+        }
+
+        // Correction de la gestion de la quantité et du stock restant
+        if (offerDetails.getQuantity() != null) {
+            int oldQuantity = offer.getQuantity() != null ? offer.getQuantity() : 0;
+            int newQuantity = offerDetails.getQuantity(); // Utiliser offerDetails ici !
+
+            int diff = newQuantity - oldQuantity;
+            int currentRemaining = offer.getRemainingQuantity() != null ? offer.getRemainingQuantity() : oldQuantity;
+            int newRemaining = currentRemaining + diff;
+
+            // S'assurer que le stock restant reste cohérent (entre 0 et la nouvelle quantité)
+            if (newRemaining > newQuantity) {
+                newRemaining = newQuantity;
+            }
+            if (newRemaining < 0) {
+                newRemaining = 0;
+            }
+
+            offer.setQuantity(newQuantity);
+            offer.setRemainingQuantity(newRemaining);
+        }
+
+        if (offerDetails.getExpiresAt() != null) {
+            offer.setExpiresAt(offerDetails.getExpiresAt());
+        }
+
+        Offer updatedOffer = offerRepository.save(offer);
+        return enrichOfferWithProduct(updatedOffer);
+    }
     // ==========================================
     // Publication : DRAFT → AVAILABLE
     // ==========================================
@@ -103,7 +172,8 @@ public class OfferController {
         }
 
         offer.setStatus(OfferStatus.AVAILABLE);
-        return offerRepository.save(offer);
+        Offer savedOffer = offerRepository.save(offer);
+        return enrichOfferWithProduct(savedOffer);
     }
 
     // ==========================================
@@ -116,11 +186,12 @@ public class OfferController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Offre introuvable"));
 
         offer.setStatus(OfferStatus.CANCELLED);
-        return offerRepository.save(offer);
+        Offer savedOffer = offerRepository.save(offer);
+        return enrichOfferWithProduct(savedOffer);
     }
 
     // ==========================================
-    // Suppression : admin
+    // Suppression : admin ou merchant
     // ==========================================
 
     @DeleteMapping("/{id}")
@@ -144,12 +215,12 @@ public class OfferController {
 
         offer.setRemainingQuantity(offer.getRemainingQuantity() - quantity);
 
-        // Mise à jour automatique du statut si épuisé
         if (offer.getRemainingQuantity() == 0) {
             offer.setStatus(OfferStatus.SOLD_OUT);
         }
 
-        return offerRepository.save(offer);
+        Offer savedOffer = offerRepository.save(offer);
+        return enrichOfferWithProduct(savedOffer);
     }
 
     @PutMapping("/{id}/increment")
@@ -159,18 +230,17 @@ public class OfferController {
 
         int newRemaining = offer.getRemainingQuantity() + quantity;
 
-        // Ne pas dépasser la quantité initiale
         if (newRemaining > offer.getQuantity()) {
             newRemaining = offer.getQuantity();
         }
 
         offer.setRemainingQuantity(newRemaining);
 
-        // Si on redevient disponible, on remet le statut
         if (newRemaining > 0 && offer.getStatus() == OfferStatus.SOLD_OUT) {
             offer.setStatus(OfferStatus.AVAILABLE);
         }
 
-        return offerRepository.save(offer);
+        Offer savedOffer = offerRepository.save(offer);
+        return enrichOfferWithProduct(savedOffer);
     }
 }

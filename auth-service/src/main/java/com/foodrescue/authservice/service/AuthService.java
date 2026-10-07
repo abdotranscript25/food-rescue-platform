@@ -39,21 +39,20 @@ public class AuthService {
             throw new RuntimeException("Un utilisateur avec cet email existe déjà.");
         }
 
-        // AJOUT : nouveau modèle avec firstName/lastName/phone/status/createdAt
         User user = User.builder()
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .phone(request.getPhone())
-                .role(request.getRole() != null ? request.getRole() : Role.CONSUMER)  // USER → CONSUMER
+                .role(request.getRole() != null ? request.getRole() : Role.CONSUMER)
                 .status(UserStatus.ACTIVE)
                 .createdAt(LocalDateTime.now())
+                .mfaEnabled(false) // Sécurité explicite
                 .build();
 
         User savedUser = userRepository.save(user);
 
-        // Appel Feign vers user-service
         try {
             UserProfileRequest profileRequest = UserProfileRequest.builder()
                     .id(savedUser.getId())
@@ -118,11 +117,16 @@ public class AuthService {
     }
 
     // ==========================================
-    // MFA Setup
+    // MFA Setup (Sécurisé contre le ré-enrôlement)
     // ==========================================
     public MfaSetupResponse mfaSetup(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Utilisateur introuvable."));
+
+        // SÉCURITÉ : Empêcher l'écrasement d'un secret si la MFA est déjà active
+        if (user.isMfaEnabled()) {
+            throw new RuntimeException("La MFA est déjà active sur ce compte. Désactivez-la d'abord pour la reconfigurer.");
+        }
 
         String secret = mfaService.generateNewSecret();
         user.setMfaSecret(secret);
@@ -139,7 +143,7 @@ public class AuthService {
     }
 
     // ==========================================
-    // MFA Verify
+    // MFA Verify (Validation initiale du setup)
     // ==========================================
     public void mfaVerify(String email, MfaVerifyRequest request) {
         User user = userRepository.findByEmail(email)
@@ -158,7 +162,7 @@ public class AuthService {
     }
 
     // ==========================================
-    // MFA Validate
+    // MFA Validate (Validation lors du Login + Anti-Rejeu)
     // ==========================================
     public AuthResponse mfaValidate(MfaValidateRequest request) {
         if (!jwtService.isPartialToken(request.getPartialToken())) {
@@ -178,9 +182,18 @@ public class AuthService {
             throw new RuntimeException("Le MFA n'est pas activé pour cet utilisateur.");
         }
 
+        // Vérification du code TOTP
         if (!mfaService.verifyCode(user.getMfaSecret(), request.getCode())) {
             throw new RuntimeException("Code MFA invalide.");
         }
+
+        // SÉCURITÉ ANTI-REJEU : Empêcher la réutilisation immédiate du même code exact
+        long currentWindow = System.currentTimeMillis() / 30000; // Fenêtre de 30 secondes
+        if (user.getLastUsedOtpWindow() != null && user.getLastUsedOtpWindow() == currentWindow) {
+            throw new RuntimeException("Ce code MFA a déjà été utilisé. Veuillez patienter pour le suivant.");
+        }
+        user.setLastUsedOtpWindow(currentWindow);
+        userRepository.save(user);
 
         String token = jwtService.generateToken(user);
 

@@ -5,6 +5,7 @@ import com.foodrescue.productservice.dto.ProductResponse;
 import com.foodrescue.productservice.entity.Product;
 import com.foodrescue.productservice.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -23,6 +24,7 @@ public class ProductService {
                 .imageUrl(request.getImageUrl())
                 .allergens(request.getAllergens())
                 .isPerishable(request.getIsPerishable())
+                .merchantId(request.getMerchantId())
                 .build();
 
         Product saved = productRepository.save(product);
@@ -31,6 +33,12 @@ public class ProductService {
 
     public List<ProductResponse> getAllProducts() {
         return productRepository.findAll().stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    public List<ProductResponse> getProductsByMerchant(Long merchantId) {
+        return productRepository.findByMerchantId(merchantId).stream()
                 .map(this::mapToResponse)
                 .toList();
     }
@@ -47,9 +55,6 @@ public class ProductService {
                 .toList();
     }
 
-    // ==========================================
-    // AJOUT : Mise à jour
-    // ==========================================
     public ProductResponse updateProduct(Long id, ProductRequest request) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Produit introuvable avec l'ID: " + id));
@@ -60,14 +65,12 @@ public class ProductService {
         if (request.getImageUrl() != null) product.setImageUrl(request.getImageUrl());
         if (request.getAllergens() != null) product.setAllergens(request.getAllergens());
         if (request.getIsPerishable() != null) product.setIsPerishable(request.getIsPerishable());
+        if (request.getMerchantId() != null) product.setMerchantId(request.getMerchantId());
 
         Product updated = productRepository.save(product);
         return mapToResponse(updated);
     }
 
-    // ==========================================
-    // AJOUT : Suppression
-    // ==========================================
     public void deleteProduct(Long id) {
         if (!productRepository.existsById(id)) {
             throw new RuntimeException("Produit introuvable avec l'ID: " + id);
@@ -84,6 +87,7 @@ public class ProductService {
                 .imageUrl(product.getImageUrl())
                 .allergens(product.getAllergens())
                 .isPerishable(product.getIsPerishable())
+                .merchantId(product.getMerchantId())
                 .createdAt(product.getCreatedAt())
                 .build();
     }

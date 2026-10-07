@@ -1,5 +1,6 @@
 package com.foodrescue.offerservice.entity;
 
+import com.foodrescue.offerservice.dto.ProductResponseDto;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -22,10 +23,16 @@ public class Offer {
     private Long id;
 
     // ==========================================
-    // AJOUT : Référence au Product (venant de product-service)
+    // Référence au Product (venant de product-service)
     // ==========================================
     @Column(name = "product_id")
     private Long productId;
+
+    // ==========================================
+    // Champ transient pour injecter les détails du produit via Feign
+    // ==========================================
+    @Transient
+    private ProductResponseDto product;
 
     @Column(nullable = false)
     private Long merchantId;

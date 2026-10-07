@@ -26,7 +26,6 @@ public class Product {
     @Column(length = 1000)
     private String description;
 
-    // AJOUT : URL de l'image du produit
     @Column(name = "image_url", length = 500)
     private String imageUrl;
 
@@ -34,6 +33,10 @@ public class Product {
 
     @Builder.Default
     private Boolean isPerishable = true;
+
+    // Ajouté pour lier le produit au marchand propriétaire (Sécurité / Multi-tenant)
+    @Column(name = "merchant_id")
+    private Long merchantId;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

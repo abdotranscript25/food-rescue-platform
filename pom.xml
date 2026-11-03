@@ -16,6 +16,14 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <sonar.organization>abdotranscript25</sonar.organization>
         <sonar.projectKey>abdotranscript25_food-rescue-platform</sonar.projectKey>
+
+        <!-- ⬇️ AJOUT : Indique à SonarQube où lire le rapport agrégé global -->
+        <sonar.coverage.jacoco.xmlReportPaths>
+            ${maven.multiModuleProjectDirectory}/target/site/jacoco-aggregate/jacoco.xml
+        </sonar.coverage.jacoco.xmlReportPaths>
+        <sonar.coverage.jacoco.aggregateXmlReportPaths>
+            ${maven.multiModuleProjectDirectory}/target/site/jacoco-aggregate/jacoco.xml
+        </sonar.coverage.jacoco.aggregateXmlReportPaths>
     </properties>
 
     <modules>
@@ -55,6 +63,30 @@
                         <exclude>**/security/**</exclude>
                     </excludes>
                 </configuration>
+                <!-- ⬇️ AJOUT : Liaison au cycle de vie Maven -->
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                    <!-- ⬇️ AJOUT : Génère un rapport global à la racine -->
+                    <execution>
+                        <id>report-aggregate</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report-aggregate</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

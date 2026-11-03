@@ -38,19 +38,19 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4  # ✅ Remplacé par le tag v4 stable
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0  # historique complet : requis par Sonar (new code, blame)
 
       - name: Set up Java 21
-        uses: actions/setup-java@v4  # ✅ Remplacé par le tag v4 stable
+        uses: actions/setup-java@2dfa2011c5b2a0fda4bc4dc4d7d03983a977d436 # v4.3.0
         with:
           distribution: 'temurin'
           java-version: '21'
           cache: 'maven'
 
       - name: Cache SonarQube packages
-        uses: actions/cache@v4  # ✅ Remplacé par le tag v4 stable
+        uses: actions/cache@3624ceb22c1c5a301c8db4169662070a689d9ea8 # v4.2.1
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
@@ -70,7 +70,7 @@ jobs:
       # En cas d'échec, conserve les rapports de tests pour comprendre l'erreur
       - name: Upload test reports on failure
         if: failure()
-        uses: actions/upload-artifact@v4  # ✅ Remplacé par le tag v4 stable
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.0
         with:
           name: test-reports
           path: '**/target/surefire-reports/'
@@ -85,7 +85,7 @@ jobs:
           tar -tzf jars.tgz
 
       - name: Upload JARs
-        uses: actions/upload-artifact@v4  # ✅ Remplacé par le tag v4 stable
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.0
         with:
           name: service-jars
           path: jars.tgz
@@ -118,10 +118,10 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4  # ✅ Remplacé par le tag v4 stable
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Download JARs
-        uses: actions/download-artifact@v4  # ✅ Remplacé par le tag v4 stable
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: service-jars
 
@@ -141,19 +141,19 @@ jobs:
           fi
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3  # ✅ Remplacé par le tag v3 stable
+        uses: docker/setup-buildx-action@6524bf65af31da2c44afa5f09d2c18e80ad6b0d7 # v3.7.0
 
       # Connexion à Docker Hub uniquement pour publier depuis main
       - name: Log in to Docker Hub
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        uses: docker/login-action@v3  # ✅ Remplacé par le tag v3 stable
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
           username: ${{ secrets.DOCKER_FOOD_RESCUE_USERNAME }}
           password: ${{ secrets.DOCKER_FOOD_RESCUE_PASSWORD }}
 
       # Construit l'image localement (sans la pousser) pour pouvoir la scanner d'abord
       - name: Build Docker Image
-        uses: docker/build-push-action@v5  # ✅ Remplacé par le tag v5 stable
+        uses: docker/build-push-action@5176d81f87c23d6fc96624dfdbcd9f3830bbe445 # v5.4.0
         with:
           context: ./${{ matrix.service }}
           file: ./${{ matrix.service }}/Dockerfile

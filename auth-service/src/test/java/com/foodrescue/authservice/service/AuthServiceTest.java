@@ -7,6 +7,7 @@ import com.foodrescue.authservice.dto.MfaSetupResponse;
 import com.foodrescue.authservice.dto.MfaValidateRequest;
 import com.foodrescue.authservice.dto.MfaVerifyRequest;
 import com.foodrescue.authservice.dto.RegisterRequest;
+import com.foodrescue.authservice.dto.UpdatePasswordRequest; // ⬅️ IMPORT AJOUTÉ
 import com.foodrescue.authservice.entity.Role;
 import com.foodrescue.authservice.entity.User;
 import com.foodrescue.authservice.entity.UserStatus;
@@ -36,6 +37,9 @@ class AuthServiceTest {
 
     @Autowired
     private TestMfaHelper testMfaHelper;
+
+    @Autowired
+    private JwtService jwtService; // ⬅️ AJOUTÉ pour générer le partial token dans les tests
 
     @MockitoBean
     private UserServiceClient userServiceClient;
@@ -282,5 +286,76 @@ class AuthServiceTest {
                 .email("sus@test.com").password("pass123").build();
 
         assertThrows(Exception.class, () -> authService.login(loginRequest));
+    }
+
+    // ==========================================
+    // 🆕 Test 11 : Update Password (Succès)
+    // ==========================================
+    @Test
+    @DisplayName("Update Password : doit mettre à jour le mot de passe")
+    void updatePassword_shouldUpdatePassword() {
+        // Création d'un utilisateur
+        RegisterRequest request = RegisterRequest.builder()
+                .firstName("Pass").lastName("Test")
+                .email("pass@test.com").password("oldPass123")
+                .role(Role.CONSUMER).build();
+        authService.register(request);
+
+        // Mise à jour
+        UpdatePasswordRequest updateReq = new UpdatePasswordRequest();
+        updateReq.setOldPassword("oldPass123");
+        updateReq.setNewPassword("newPass456");
+
+        authService.updatePassword("pass@test.com", updateReq);
+
+        // Vérification
+        User user = userRepository.findByEmail("pass@test.com").orElseThrow();
+        // On vérifie que le mot de passe a été modifié
+        assertNotEquals("oldPass123", user.getPassword());
+    }
+
+    // ==========================================
+    // 🆕 Test 12 : Update Password (Échec)
+    // ==========================================
+    @Test
+    @DisplayName("Update Password : doit échouer avec un mauvais ancien mot de passe")
+    void updatePassword_shouldFailWithWrongOldPassword() {
+        RegisterRequest request = RegisterRequest.builder()
+                .firstName("Pass").lastName("Test")
+                .email("pass2@test.com").password("oldPass123")
+                .role(Role.CONSUMER).build();
+        authService.register(request);
+
+        UpdatePasswordRequest updateReq = new UpdatePasswordRequest();
+        updateReq.setOldPassword("WRONG_PASS");
+        updateReq.setNewPassword("newPass456");
+
+        assertThrows(RuntimeException.class,
+                () -> authService.updatePassword("pass2@test.com", updateReq));
+    }
+
+    // ==========================================
+    // 🆕 Test 13 : MFA Validate (MFA non activé)
+    // ==========================================
+    @Test
+    @DisplayName("MFA Validate : doit échouer si le MFA n'est pas activé sur le compte")
+    void mfaValidate_shouldFailIfMfaNotEnabled() {
+        // Création d'un utilisateur SANS MFA
+        RegisterRequest request = RegisterRequest.builder()
+                .firstName("NoMfa").lastName("User")
+                .email("nomfa@test.com").password("pass123")
+                .role(Role.CONSUMER).build();
+        authService.register(request);
+
+        // On génère un vrai partial token pour cet utilisateur
+        String partialToken = jwtService.generatePartialToken("nomfa@test.com");
+
+        MfaValidateRequest validateReq = new MfaValidateRequest(partialToken, "123456");
+
+        // On s'attend à une exception car user.isMfaEnabled() == false
+        RuntimeException exception = assertThrows(RuntimeException.class,
+                () -> authService.mfaValidate(validateReq));
+
+        assertTrue(exception.getMessage().contains("Le MFA n'est pas activé"));
     }
 }

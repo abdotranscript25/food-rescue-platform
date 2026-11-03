@@ -29,4 +29,33 @@
         <module>reservation-service</module>
         <module>user-service</module>
     </modules>
+
+    <!-- ========================================== -->
+    <!-- CONFIGURATION JACOCO POUR LA COUVERTURE   -->
+    <!-- ========================================== -->
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.12</version>
+                <configuration>
+                    <excludes>
+                        <!-- Exclure les DTOs (pas de logique métier) -->
+                        <exclude>**/dto/**</exclude>
+                        <!-- Exclure les entités JPA (générées par Hibernate) -->
+                        <exclude>**/entity/**</exclude>
+                        <!-- Exclure les classes de configuration Spring -->
+                        <exclude>**/config/**</exclude>
+                        <!-- Exclure la classe main de chaque microservice -->
+                        <exclude>**/*Application.class</exclude>
+                        <!-- Exclure les repositories (interfaces Spring Data) -->
+                        <exclude>**/repository/**</exclude>
+                        <!-- Exclure les classes de sécurité (filtres JWT, etc.) -->
+                        <exclude>**/security/**</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

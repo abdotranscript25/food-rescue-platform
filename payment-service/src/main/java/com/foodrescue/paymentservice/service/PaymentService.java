@@ -14,18 +14,22 @@ public class PaymentService {
 
     public PaymentService(PaymentRepository paymentRepository, ReservationClient reservationClient) {
         this.paymentRepository = paymentRepository;
-        this.reservationClient = reservationClient; // Correction de l'initialisation
+        this.reservationClient = reservationClient;
     }
 
     public Payment processPayment(Long reservationId, Long clientId, Double amount, String paymentMethod) {
+        Object reservation;
+
         // 1. Vérification de l'existence de la réservation via Feign Client
         try {
-            Object reservation = reservationClient.getReservationById(reservationId);
-            if (reservation == null) {
-                throw new RuntimeException("Réservation introuvable, impossible d'effectuer le paiement.");
-            }
+            reservation = reservationClient.getReservationById(reservationId);
         } catch (Exception e) {
             throw new RuntimeException("Erreur de communication avec le service de réservation : " + e.getMessage());
+        }
+
+        // On vérifie le null EN DEHORS du try-catch
+        if (reservation == null) {
+            throw new RuntimeException("Réservation introuvable, impossible d'effectuer le paiement.");
         }
 
         // 2. Traitement et sauvegarde du paiement

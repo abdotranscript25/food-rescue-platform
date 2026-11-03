@@ -45,12 +45,16 @@ public class AuthController {
                 .body(authResponse);
     }
 
+    // ==========================================
+    // CORRECTION SÉCURITÉ : Renvoie un DTO au lieu de l'Entité
+    // ==========================================
     @GetMapping("/me")
-    public ResponseEntity<User> getCurrentUser(Authentication authentication) {
+    public ResponseEntity<UserDto> getCurrentUser(Authentication authentication) {
         String email = authentication.getName();
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Utilisateur introuvable."));
-        return ResponseEntity.ok(user);
+
+        return ResponseEntity.ok(mapToDto(user));
     }
 
     @PostMapping("/mfa/setup")
@@ -96,7 +100,6 @@ public class AuthController {
         return ResponseEntity.ok().body("Mot de passe mis à jour avec succès.");
     }
 
-    // 💡 SYNCHRONISATION : Endpoint de mise à jour des infos dans la table users d'auth-service
     @PutMapping("/update-profile")
     public ResponseEntity<?> updateProfile(
             Authentication authentication,
@@ -111,5 +114,22 @@ public class AuthController {
 
         userRepository.save(user);
         return ResponseEntity.ok().body("Profil mis à jour dans la base Auth avec succès.");
+    }
+
+    // ==========================================
+    // MÉTHODE UTILITAIRE : Mapping Entity -> DTO
+    // ==========================================
+    private UserDto mapToDto(User user) {
+        return UserDto.builder()
+                .id(user.getId())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .email(user.getEmail())
+                .phone(user.getPhone())
+                .role(user.getRole())
+                .status(user.getStatus())
+                .createdAt(user.getCreatedAt())
+                .mfaEnabled(user.isMfaEnabled())
+                .build();
     }
 }

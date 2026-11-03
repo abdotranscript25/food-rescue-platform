@@ -56,10 +56,8 @@ class PaymentControllerTest {
     @WithMockUser(username = "user@test.com")
     @DisplayName("POST /api/payments : doit traiter le paiement")
     void processPayment_shouldReturnPayment() throws Exception {
-        // Mocker Feign
         when(reservationClient.getReservationById(anyLong())).thenReturn(new Object());
 
-        // Construire la requête JSON
         Map<String, Object> request = new HashMap<>();
         request.put("reservationId", 10L);
         request.put("clientId", 500L);
@@ -95,7 +93,28 @@ class PaymentControllerTest {
     }
 
     // ==========================================
-    // Test 3 : GET /api/payments/reservation/{id}
+    // 🆕 Test 3 : POST avec erreur Feign (NOUVEAU)
+    // ==========================================
+    @Test
+    @WithMockUser(username = "user@test.com")
+    @DisplayName("POST /api/payments : erreur Feign → 500")
+    void processPayment_shouldReturn500IfFeignFails() throws Exception {
+        when(reservationClient.getReservationById(anyLong())).thenThrow(new RuntimeException("Service down"));
+
+        Map<String, Object> request = new HashMap<>();
+        request.put("reservationId", 1L);
+        request.put("clientId", 1L);
+        request.put("amount", 100.0);
+        request.put("paymentMethod", "CARD");
+
+        mockMvc.perform(post("/api/payments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isInternalServerError()); // 500
+    }
+
+    // ==========================================
+    // Test 4 : GET /api/payments/reservation/{id} (Succès)
     // ==========================================
     @Test
     @WithMockUser(username = "user@test.com")
@@ -115,5 +134,16 @@ class PaymentControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.reservationId").value(20))
                 .andExpect(jsonPath("$.clientId").value(300));
+    }
+
+    // ==========================================
+    // 🆕 Test 5 : GET /api/payments/reservation/{id} (Non trouvé)
+    // ==========================================
+    @Test
+    @WithMockUser(username = "user@test.com")
+    @DisplayName("GET /api/payments/reservation/{id} : non trouvé → 404")
+    void getByReservation_shouldReturn404IfNotFound() throws Exception {
+        mockMvc.perform(get("/api/payments/reservation/999"))
+                .andExpect(status().isNotFound()); // 404
     }
 }

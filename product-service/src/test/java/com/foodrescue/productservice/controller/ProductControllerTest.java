@@ -17,6 +17,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -44,6 +45,16 @@ class ProductControllerTest {
         return productRepository.save(Product.builder()
                 .name(name)
                 .merchantId(merchantId)
+                .createdAt(LocalDateTime.now())
+                .build());
+    }
+
+    // 🆕 Helper pour créer un produit avec catégorie (utile pour les tests de filtre)
+    private Product createTestProductWithCategory(String name, String merchantId, String category) {
+        return productRepository.save(Product.builder()
+                .name(name)
+                .merchantId(merchantId)
+                .category(category)
                 .createdAt(LocalDateTime.now())
                 .build());
     }
@@ -114,7 +125,7 @@ class ProductControllerTest {
     }
 
     // ==========================================
-    // 🆕 Test 5 : GET par Merchant (NOUVEAU)
+    // Test 5 : GET par Merchant
     // ==========================================
     @Test
     @DisplayName("GET /api/products/merchant/{merchantId} : doit filtrer par marchand")
@@ -127,5 +138,73 @@ class ProductControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].merchantId").value("merchant-A"));
+    }
+
+    // ==========================================
+    // 🆕 Test 6 : GET par ID
+    // ==========================================
+    @Test
+    @DisplayName("GET /api/products/{id} : doit retourner le produit")
+    void getProductById_shouldReturnProduct() throws Exception {
+        Product product = createTestProduct("Lait", "merchant-1");
+
+        mockMvc.perform(get("/api/products/" + product.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(product.getId()))
+                .andExpect(jsonPath("$.name").value("Lait"));
+    }
+
+    // ==========================================
+    // 🆕 Test 7 : GET par catégorie
+    // ==========================================
+    @Test
+    @DisplayName("GET /api/products/category/{category} : doit filtrer par catégorie")
+    void getProductsByCategory_shouldReturnFilteredList() throws Exception {
+        createTestProductWithCategory("Pain", "merchant-1", "Boulangerie");
+        createTestProductWithCategory("Baguette", "merchant-1", "Boulangerie");
+        createTestProductWithCategory("Pomme", "merchant-2", "Fruits");
+
+        mockMvc.perform(get("/api/products/category/Boulangerie"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
+    }
+
+    // ==========================================
+    // 🆕 Test 8 : PUT mise à jour
+    // ==========================================
+    @Test
+    @WithMockUser(username = "martin@test.com", roles = "MERCHANT")
+    @DisplayName("PUT /api/products/{id} : doit mettre à jour le produit")
+    void updateProduct_shouldUpdate() throws Exception {
+        Product product = createTestProduct("Ancien nom", "merchant-1");
+
+        ProductRequest updateRequest = new ProductRequest();
+        updateRequest.setName("Nouveau nom");
+        updateRequest.setCategory("Nouvelle catégorie");
+        updateRequest.setDescription("Nouvelle description");
+
+        mockMvc.perform(put("/api/products/" + product.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Nouveau nom"))
+                .andExpect(jsonPath("$.category").value("Nouvelle catégorie"))
+                .andExpect(jsonPath("$.description").value("Nouvelle description"));
+    }
+
+    // ==========================================
+    // 🆕 Test 9 : DELETE suppression
+    // ==========================================
+    @Test
+    @WithMockUser(username = "martin@test.com", roles = "MERCHANT")
+    @DisplayName("DELETE /api/products/{id} : doit supprimer le produit")
+    void deleteProduct_shouldDelete() throws Exception {
+        Product product = createTestProduct("À supprimer", "merchant-1");
+
+        mockMvc.perform(delete("/api/products/" + product.getId()))
+                .andExpect(status().isNoContent());
+
+        // Vérifier en base qu'il a bien été supprimé
+        assertFalse(productRepository.existsById(product.getId()));
     }
 }

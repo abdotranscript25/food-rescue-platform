@@ -1,92 +1,101 @@
 package com.foodrescue.userservice.controller;
 
+import com.foodrescue.userservice.dto.UserProfileDto;
 import com.foodrescue.userservice.entity.UserProfile;
 import com.foodrescue.userservice.repository.UserProfileRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/users/profiles")
+@RequiredArgsConstructor // ⬅️ Remplace @Autowired
 public class UserProfileController {
 
-    @Autowired
-    private UserProfileRepository userProfileRepository;
+    private final UserProfileRepository userProfileRepository; // ⬅️ Injection par constructeur
+
+    // ==========================================
+    // LECTURE (GET)
+    // ==========================================
 
     @GetMapping
-    public List<UserProfile> getAllProfiles() {
-        return userProfileRepository.findAll();
+    public List<UserProfileDto> getAllProfiles() {
+        return userProfileRepository.findAll().stream()
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
     }
 
     @GetMapping("/merchants")
-    public List<UserProfile> getMerchantProfiles() {
-        return userProfileRepository.findByRole("MERCHANT");
+    public List<UserProfileDto> getMerchantProfiles() {
+        return userProfileRepository.findByRole("MERCHANT").stream()
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<UserProfile> getProfileById(@PathVariable String id) { // ⬅️ String
+    public ResponseEntity<UserProfileDto> getProfileById(@PathVariable String id) {
         return userProfileRepository.findById(id)
+                .map(this::mapToDto)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/email/{email}")
-    public ResponseEntity<UserProfile> getProfileByEmail(@PathVariable String email) {
+    public ResponseEntity<UserProfileDto> getProfileByEmail(@PathVariable String email) {
         return userProfileRepository.findByEmail(email)
+                .map(this::mapToDto)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    // ==========================================
+    // ÉCRITURE (POST / PUT)
+    // ==========================================
+
     @PostMapping
-    public ResponseEntity<UserProfile> createProfile(@RequestBody UserProfile profile) {
+    public ResponseEntity<UserProfileDto> createProfile(@RequestBody UserProfileDto profileDto) {
         UserProfile existing = null;
 
-        if (profile.getId() != null) {
-            existing = userProfileRepository.findById(profile.getId()).orElse(null);
+        if (profileDto.getId() != null) {
+            existing = userProfileRepository.findById(profileDto.getId()).orElse(null);
         }
 
-        if (existing == null && profile.getEmail() != null) {
-            existing = userProfileRepository.findByEmail(profile.getEmail()).orElse(null);
+        if (existing == null && profileDto.getEmail() != null) {
+            existing = userProfileRepository.findByEmail(profileDto.getEmail()).orElse(null);
         }
 
         if (existing != null) {
             // MISE À JOUR
-            if (profile.getFirstName() != null) existing.setFirstName(profile.getFirstName());
-            if (profile.getLastName() != null) existing.setLastName(profile.getLastName());
-            if (profile.getPhone() != null) existing.setPhone(profile.getPhone());
-            if (profile.getAddress() != null) existing.setAddress(profile.getAddress());
-            if (profile.getCity() != null) existing.setCity(profile.getCity());
-            if (profile.getRole() != null) existing.setRole(profile.getRole());
-            return ResponseEntity.ok(userProfileRepository.save(existing));
+            updateEntityFromDto(existing, profileDto);
+            UserProfile saved = userProfileRepository.save(existing);
+            return ResponseEntity.ok(mapToDto(saved));
         } else {
-            // CRÉATION : l'ID String est fourni par auth-service
-            return ResponseEntity.ok(userProfileRepository.save(profile));
+            // CRÉATION
+            UserProfile newProfile = mapToEntity(profileDto);
+            UserProfile saved = userProfileRepository.save(newProfile);
+            return ResponseEntity.ok(mapToDto(saved));
         }
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<UserProfile> updateProfile(@PathVariable String id, @RequestBody UserProfile updatedData) { // ⬅️ String
+    public ResponseEntity<UserProfileDto> updateProfile(@PathVariable String id, @RequestBody UserProfileDto updatedData) {
         return userProfileRepository.findById(id)
                 .map(existingProfile -> {
-                    if (updatedData.getFirstName() != null) existingProfile.setFirstName(updatedData.getFirstName());
-                    if (updatedData.getLastName() != null) existingProfile.setLastName(updatedData.getLastName());
-                    if (updatedData.getPhone() != null) existingProfile.setPhone(updatedData.getPhone());
-                    if (updatedData.getAddress() != null) existingProfile.setAddress(updatedData.getAddress());
-                    if (updatedData.getCity() != null) existingProfile.setCity(updatedData.getCity());
-                    if (updatedData.getEmail() != null) existingProfile.setEmail(updatedData.getEmail());
-                    if (updatedData.getRole() != null) existingProfile.setRole(updatedData.getRole());
-                    return ResponseEntity.ok(userProfileRepository.save(existingProfile));
+                    updateEntityFromDto(existingProfile, updatedData);
+                    UserProfile saved = userProfileRepository.save(existingProfile);
+                    return ResponseEntity.ok(mapToDto(saved));
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PutMapping("/profile")
-    public ResponseEntity<UserProfile> updateMyProfile(
+    public ResponseEntity<UserProfileDto> updateMyProfile(
             Authentication authentication,
-            @RequestBody UserProfile updatedData
+            @RequestBody UserProfileDto updatedData
     ) {
         String currentEmail = authentication.getName();
 
@@ -97,14 +106,50 @@ public class UserProfileController {
                     return newProfile;
                 });
 
-        if (updatedData.getFirstName() != null) profile.setFirstName(updatedData.getFirstName());
-        if (updatedData.getLastName() != null) profile.setLastName(updatedData.getLastName());
-        if (updatedData.getPhone() != null) profile.setPhone(updatedData.getPhone());
-        if (updatedData.getAddress() != null) profile.setAddress(updatedData.getAddress());
-        if (updatedData.getCity() != null) profile.setCity(updatedData.getCity());
-        if (updatedData.getEmail() != null) profile.setEmail(updatedData.getEmail());
-        if (updatedData.getRole() != null) profile.setRole(updatedData.getRole());
+        updateEntityFromDto(profile, updatedData);
+        UserProfile saved = userProfileRepository.save(profile);
+        return ResponseEntity.ok(mapToDto(saved));
+    }
 
-        return ResponseEntity.ok(userProfileRepository.save(profile));
+    // ==========================================
+    // MÉTHODES UTILITAIRES (MAPPING)
+    // ==========================================
+
+    private UserProfileDto mapToDto(UserProfile entity) {
+        return UserProfileDto.builder()
+                .id(entity.getId())
+                .firstName(entity.getFirstName())
+                .lastName(entity.getLastName())
+                .email(entity.getEmail())
+                .phone(entity.getPhone())
+                .address(entity.getAddress())
+                .city(entity.getCity())
+                .role(entity.getRole())
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
+                .build();
+    }
+
+    private UserProfile mapToEntity(UserProfileDto dto) {
+        return UserProfile.builder()
+                .id(dto.getId())
+                .firstName(dto.getFirstName())
+                .lastName(dto.getLastName())
+                .email(dto.getEmail())
+                .phone(dto.getPhone())
+                .address(dto.getAddress())
+                .city(dto.getCity())
+                .role(dto.getRole())
+                .build();
+    }
+
+    private void updateEntityFromDto(UserProfile entity, UserProfileDto dto) {
+        if (dto.getFirstName() != null) entity.setFirstName(dto.getFirstName());
+        if (dto.getLastName() != null) entity.setLastName(dto.getLastName());
+        if (dto.getPhone() != null) entity.setPhone(dto.getPhone());
+        if (dto.getAddress() != null) entity.setAddress(dto.getAddress());
+        if (dto.getCity() != null) entity.setCity(dto.getCity());
+        if (dto.getEmail() != null) entity.setEmail(dto.getEmail());
+        if (dto.getRole() != null) entity.setRole(dto.getRole());
     }
 }

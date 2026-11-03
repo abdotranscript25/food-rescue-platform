@@ -2,6 +2,7 @@ package com.foodrescue.notificationservice.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.mail.MailException; // ⬅️ Import spécifique
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
@@ -22,8 +23,10 @@ public class EmailService {
 
             mailSender.send(message);
             log.info("E-mail envoyé avec succès à : {}", to);
-        } catch (Exception e) {
-            log.warn("Impossible d'envoyer l'e-mail via SMTP (Mode dégradé/simulation). Erreur: {}", e.getMessage());
+
+        } catch (MailException e) { // ⬅️ On attrape l'exception spécifique du mail
+            // ⬅️ On ajoute "e" à la fin pour logger la stack trace complète
+            log.warn("Impossible d'envoyer l'e-mail via SMTP (Mode dégradé/simulation). Erreur: {}", e.getMessage(), e);
             log.info("--- SIMULATION ENVOI EMAIL ---");
             log.info("À : {}", to);
             log.info("Sujet : {}", subject);

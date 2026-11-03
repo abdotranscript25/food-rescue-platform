@@ -3,16 +3,13 @@ package com.foodrescue.reservationservice.controller;
 import com.foodrescue.reservationservice.client.OfferClient;
 import com.foodrescue.reservationservice.client.UserServiceClient;
 import com.foodrescue.reservationservice.config.RabbitMQConfig;
-import com.foodrescue.reservationservice.dto.OfferResponse;
-import com.foodrescue.reservationservice.dto.ReservationEnrichedResponse;
-import com.foodrescue.reservationservice.dto.ReservationEvent;
-import com.foodrescue.reservationservice.dto.UserProfileResponse;
+import com.foodrescue.reservationservice.dto.*;
 import com.foodrescue.reservationservice.entity.Reservation;
 import com.foodrescue.reservationservice.entity.ReservationStatus;
 import com.foodrescue.reservationservice.repository.ReservationRepository;
 import com.foodrescue.reservationservice.security.JwtService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -30,29 +27,27 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/reservations")
+@RequiredArgsConstructor // ⬅️ Injection par constructeur
 public class ReservationController {
 
-    @Autowired
-    private ReservationRepository reservationRepository;
-
-    @Autowired
-    private OfferClient offerClient;
-
-    @Autowired
-    private UserServiceClient userServiceClient;
-
-    @Autowired
-    private JwtService jwtService;
-
-    @Autowired
-    private RabbitTemplate rabbitTemplate;
+    private final ReservationRepository reservationRepository;
+    private final OfferClient offerClient;
+    private final UserServiceClient userServiceClient;
+    private final JwtService jwtService;
+    private final RabbitTemplate rabbitTemplate;
 
     @Value("${MAIL_USERNAME}")
     private String mailUsername;
 
+    // ==========================================
+    // LECTURE
+    // ==========================================
+
     @GetMapping
-    public List<Reservation> getAllReservations() {
-        return reservationRepository.findAll();
+    public List<ReservationDto> getAllReservations() {
+        return reservationRepository.findAll().stream()
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
     }
 
     @GetMapping("/user/{consumerId}")
@@ -163,33 +158,40 @@ public class ReservationController {
     }
 
     @GetMapping("/status/{status}")
-    public List<Reservation> getReservationsByStatus(@PathVariable ReservationStatus status) {
-        return reservationRepository.findByStatus(status);
+    public List<ReservationDto> getReservationsByStatus(@PathVariable ReservationStatus status) {
+        return reservationRepository.findByStatus(status).stream()
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
     }
 
     @GetMapping("/{id}")
-    public Reservation getReservationById(@PathVariable Long id) {
-        return reservationRepository.findById(id).orElse(null);
+    public ReservationDto getReservationById(@PathVariable Long id) {
+        Reservation reservation = reservationRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Réservation introuvable."));
+        return mapToDto(reservation);
     }
 
+    // ==========================================
+    // CRÉATION & MODIFICATION
+    // ==========================================
+
     @PostMapping
-    public Reservation createReservation(
-            @RequestBody Reservation reservationRequest,
+    public ReservationDto createReservation(
+            @RequestBody ReservationDto reservationDto,
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             Principal principal
     ) {
-        if (reservationRequest.getOfferId() == null) {
+        if (reservationDto.getOfferId() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "L'identifiant de l'offre est obligatoire.");
         }
-        if (reservationRequest.getQuantity() == null || reservationRequest.getQuantity() <= 0) {
+        if (reservationDto.getQuantity() == null || reservationDto.getQuantity() <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La quantité doit être supérieure à zéro.");
         }
 
         String userEmail = (principal != null) ? principal.getName() : mailUsername;
-        String consumerId = reservationRequest.getConsumerId();
+        String consumerId = reservationDto.getConsumerId();
         String recipientEmail = userEmail;
 
-        // Extraction propre de l'UUID du consommateur depuis le JWT si présent
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             try {
                 String token = authHeader.substring(7);
@@ -218,7 +220,7 @@ public class ReservationController {
 
         OfferResponse offer;
         try {
-            offer = offerClient.getOfferById(reservationRequest.getOfferId());
+            offer = offerClient.getOfferById(reservationDto.getOfferId());
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Offre introuvable : " + e.getMessage());
         }
@@ -230,23 +232,24 @@ public class ReservationController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Impossible de réserver : cette offre a expiré.");
         }
 
-        if (offer.getRemainingQuantity() == null || offer.getRemainingQuantity() < reservationRequest.getQuantity()) {
+        if (offer.getRemainingQuantity() == null || offer.getRemainingQuantity() < reservationDto.getQuantity()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Stock insuffisant. Disponible : " + offer.getRemainingQuantity());
         }
 
-        offerClient.decrementStock(reservationRequest.getOfferId(), reservationRequest.getQuantity());
+        offerClient.decrementStock(reservationDto.getOfferId(), reservationDto.getQuantity());
 
         BigDecimal totalPrice = offer.getDiscountedPrice()
-                .multiply(BigDecimal.valueOf(reservationRequest.getQuantity()));
+                .multiply(BigDecimal.valueOf(reservationDto.getQuantity()));
 
-        Reservation reservation = new Reservation();
-        reservation.setOfferId(reservationRequest.getOfferId());
-        reservation.setQuantity(reservationRequest.getQuantity());
-        reservation.setConsumerId(consumerId);
-        reservation.setTotalPrice(totalPrice);
-        reservation.setStatus(ReservationStatus.CONFIRMED);
-        reservation.setReservationDate(LocalDateTime.now());
+        Reservation reservation = Reservation.builder()
+                .offerId(reservationDto.getOfferId())
+                .quantity(reservationDto.getQuantity())
+                .consumerId(consumerId)
+                .totalPrice(totalPrice)
+                .status(ReservationStatus.CONFIRMED)
+                .reservationDate(LocalDateTime.now())
+                .build();
 
         Reservation savedReservation = reservationRepository.save(reservation);
 
@@ -254,11 +257,11 @@ public class ReservationController {
                 "Nouvelle réservation confirmée pour " + savedReservation.getQuantity() + " portion(s).",
                 recipientEmail);
 
-        return savedReservation;
+        return mapToDto(savedReservation);
     }
 
     @PutMapping("/{id}/cancel")
-    public Reservation cancelReservation(@PathVariable Long id) {
+    public ReservationDto cancelReservation(@PathVariable Long id) {
         Reservation reservation = reservationRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Réservation introuvable."));
 
@@ -291,11 +294,11 @@ public class ReservationController {
         publishEvent(updatedReservation, "CANCELLED",
                 "La réservation a été annulée avec succès.", recipientEmail);
 
-        return updatedReservation;
+        return mapToDto(updatedReservation);
     }
 
     @PutMapping("/{id}/complete")
-    public Reservation completeReservation(@PathVariable Long id) {
+    public ReservationDto completeReservation(@PathVariable Long id) {
         Reservation reservation = reservationRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Réservation introuvable."));
 
@@ -322,7 +325,24 @@ public class ReservationController {
         publishEvent(updatedReservation, "COMPLETED",
                 "Réservation complétée. Merci d'avoir sauvé de la nourriture !", recipientEmail);
 
-        return updatedReservation;
+        return mapToDto(updatedReservation);
+    }
+
+    // ==========================================
+    // MAPPING & ÉVÉNEMENTS
+    // ==========================================
+
+    private ReservationDto mapToDto(Reservation reservation) {
+        return ReservationDto.builder()
+                .id(reservation.getId())
+                .consumerId(reservation.getConsumerId())
+                .offerId(reservation.getOfferId())
+                .quantity(reservation.getQuantity())
+                .totalPrice(reservation.getTotalPrice())
+                .status(reservation.getStatus())
+                .reservationDate(reservation.getReservationDate())
+                .cancelledAt(reservation.getCancelledAt())
+                .build();
     }
 
     private void publishEvent(Reservation reservation, String status, String message, String recipientEmail) {

@@ -24,6 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -298,5 +299,49 @@ class ReservationControllerTest {
         mockMvc.perform(get("/api/reservations/user/consumer-uuid-123")) // ⚠️ String (UUID)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    // ==========================================
+    // 🆕 Test 13 : GET par Merchant (NOUVEAU)
+    // ==========================================
+    @Test
+    @WithMockUser(username = "alice@test.com", roles = "CONSUMER")
+    @DisplayName("GET /api/reservations/merchant/{merchantId} : doit retourner la liste enrichie")
+    void getReservationsByMerchant_shouldReturnList() throws Exception {
+        createTestReservation(); // Crée une réservation pour l'offre 1L
+
+        // Mocker Feign pour retourner l'offre 1L pour ce marchand
+        when(offerClient.getOffersByMerchant(anyString()))
+                .thenReturn(List.of(mockOffer(10)));
+
+        // Mocker Feign pour le profil utilisateur (appelé par l'enrichissement)
+        when(userServiceClient.getUserById(anyString()))
+                .thenReturn(new UserProfileResponse("consumer-uuid-123", "Alice", "Dupont",
+                        "alice@test.com", "+33612345678", "Paris", "Paris"));
+
+        mockMvc.perform(get("/api/reservations/merchant/merchant-uuid-123"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].offer.id").value(1))
+                .andExpect(jsonPath("$[0].consumer.firstName").value("Alice"));
+    }
+
+    // ==========================================
+    // 🆕 Test 14 : GET par Status (NOUVEAU)
+    // ==========================================
+    @Test
+    @WithMockUser(username = "alice@test.com", roles = "CONSUMER")
+    @DisplayName("GET /api/reservations/status/{status} : doit filtrer par statut")
+    void getReservationsByStatus_shouldReturnFilteredList() throws Exception {
+        createTestReservation(); // Status CONFIRMED par défaut
+
+        Reservation cancelled = createTestReservation();
+        cancelled.setStatus(ReservationStatus.CANCELLED);
+        reservationRepository.save(cancelled);
+
+        mockMvc.perform(get("/api/reservations/status/CONFIRMED"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].status").value("CONFIRMED"));
     }
 }

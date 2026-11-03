@@ -16,6 +16,6 @@ public class ProductResponse {
     private String imageUrl;
     private String allergens;
     private Boolean isPerishable;
-    private Long merchantId;
+    private String merchantId; // 💡 Changé en String (UUID)
     private LocalDateTime createdAt;
 }

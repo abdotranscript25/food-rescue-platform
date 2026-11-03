@@ -8,20 +8,19 @@ import { authApi } from '@/api/authApi';
 import type { MfaSetupResponse } from '@/types/auth';
 
 export default function MfaSecurityPage() {
+  const queryClient = useQueryClient(); // 👈 Initialisation de queryClient obligatoire pour évider le "queryClient is not defined"
+
   const [setupData, setSetupData] = useState<MfaSetupResponse | null>(null);
   const [otpCode, setOtpCode] = useState('');
   const [isActivating, setIsActivating] = useState(false);
   const [mfaEnabled, setMfaEnabled] = useState(false);
   const [isLoadingStatus, setIsLoadingStatus] = useState(true);
 
-  const queryClient = useQueryClient();
-
-  // 1. Récupérer le statut réel de l'utilisateur au chargement de la page
+  // Récupérer le statut réel de l'utilisateur au chargement de la page
   useEffect(() => {
     const fetchUserStatus = async () => {
       try {
-        // Remplacez selon votre api profile/auth (ex: authApi.getProfile ou authApi.getCurrentUser)
-        const userProfile = await authApi.getCurrentUser?.() || await authApi.getProfile?.();
+        const userProfile = await authApi.getCurrentUser?.() || await (authApi as any).getProfile?.();
         if (userProfile && typeof userProfile.mfaEnabled === 'boolean') {
           setMfaEnabled(userProfile.mfaEnabled);
         }
@@ -60,7 +59,6 @@ export default function MfaSecurityPage() {
       setSetupData(null);
       setOtpCode('');
       alert("🎉 Authentification à deux facteurs (MFA) activée avec succès !");
-      // Invalider les requêtes du cache si nécessaire
       queryClient.invalidateQueries({ queryKey: ['user'] });
     },
     onError: (err: any) => {
@@ -78,7 +76,6 @@ export default function MfaSecurityPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      {/* En-tête de la page */}
       <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="bg-green-100 p-3 rounded-xl">
@@ -102,7 +99,6 @@ export default function MfaSecurityPage() {
         </div>
       </div>
 
-      {/* Corps principal */}
       <Card className="p-6 space-y-6 bg-white border border-gray-100 shadow-sm">
         {mfaEnabled ? (
           <div className="space-y-4">

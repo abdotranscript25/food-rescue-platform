@@ -12,6 +12,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
+import java.util.UUID; // ⬅️ IMPORT DE UUID
 
 @Entity
 @Table(name = "users")
@@ -22,12 +23,10 @@ import java.util.List;
 public class User implements UserDetails {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(length = 36, nullable = false, updatable = false)
+    @Builder.Default
+    private String id = UUID.randomUUID().toString(); // ⬅️ Génération automatique d'un UUID
 
-    // ==========================================
-    // Informations personnelles
-    // ==========================================
     @Column(nullable = false)
     private String firstName;
 
@@ -47,24 +46,15 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private Role role;
 
-    // ==========================================
-    // Statut du compte
-    // ==========================================
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
     private UserStatus status = UserStatus.ACTIVE;
 
-    // ==========================================
-    // Date de création (audit)
-    // ==========================================
     @Column(nullable = false, updatable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    // ==========================================
-    // MFA & Anti-Rejeu
-    // ==========================================
     @Column(nullable = false)
     @Builder.Default
     private boolean mfaEnabled = false;
@@ -72,13 +62,8 @@ public class User implements UserDetails {
     @Column(length = 64)
     private String mfaSecret;
 
-    // AJOUT : Fenêtre temporelle du dernier OTP validé (Anti-Rejeu)
     @Column
     private Long lastUsedOtpWindow;
-
-    // ==========================================
-    // Méthodes requises par l'interface UserDetails
-    // ==========================================
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -91,22 +76,14 @@ public class User implements UserDetails {
     }
 
     @Override
-    public boolean isAccountNonExpired() {
-        return true;
-    }
+    public boolean isAccountNonExpired() { return true; }
 
     @Override
-    public boolean isAccountNonLocked() {
-        return status != UserStatus.SUSPENDED;
-    }
+    public boolean isAccountNonLocked() { return status != UserStatus.SUSPENDED; }
 
     @Override
-    public boolean isCredentialsNonExpired() {
-        return true;
-    }
+    public boolean isCredentialsNonExpired() { return true; }
 
     @Override
-    public boolean isEnabled() {
-        return status == UserStatus.ACTIVE;
-    }
+    public boolean isEnabled() { return status == UserStatus.ACTIVE; }
 }

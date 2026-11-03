@@ -27,10 +27,10 @@ public class SecurityConfig {
                         // 1. GET : public
                         .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
 
-                        // 2. POST / PUT / DELETE : MERCHANT ou ADMIN uniquement
-                        .requestMatchers(HttpMethod.POST, "/api/products/**").hasAnyAuthority("ROLE_MERCHANT", "ROLE_ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/products/**").hasAnyAuthority("ROLE_MERCHANT", "ROLE_ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/products/**").hasAnyAuthority("ROLE_MERCHANT", "ROLE_ADMIN")
+                        // 2. POST / PUT / DELETE : MERCHANT ou ADMIN (avec ou sans le préfixe ROLE_)
+                        .requestMatchers(HttpMethod.POST, "/api/products/**").hasAnyAuthority("ROLE_MERCHANT", "MERCHANT", "ROLE_ADMIN", "ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/products/**").hasAnyAuthority("ROLE_MERCHANT", "MERCHANT", "ROLE_ADMIN", "ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/products/**").hasAnyAuthority("ROLE_MERCHANT", "MERCHANT", "ROLE_ADMIN", "ADMIN")
 
                         // 3. Actuator
                         .requestMatchers("/actuator/**").permitAll()

@@ -42,6 +42,7 @@ class ProductServiceTest {
         request.setImageUrl("https://example.com/pain.jpg");
         request.setAllergens("Gluten");
         request.setIsPerishable(true);
+        request.setMerchantId("merchant-uuid-123"); // Ajout de l'UUID
 
         ProductResponse response = productService.createProduct(request);
 
@@ -49,6 +50,7 @@ class ProductServiceTest {
         assertEquals("Pain Bio", response.getName());
         assertEquals("Boulangerie", response.getCategory());
         assertEquals("https://example.com/pain.jpg", response.getImageUrl());
+        assertEquals("merchant-uuid-123", response.getMerchantId());
         assertNotNull(response.getCreatedAt());
     }
 
@@ -97,7 +99,27 @@ class ProductServiceTest {
     }
 
     // ==========================================
-    // Test 5 : Filtrer par catégorie
+    // 🆕 Test 5 : Filtrer par Merchant (NOUVEAU)
+    // ==========================================
+    @Test
+    @DisplayName("getProductsByMerchant : doit filtrer par marchand")
+    void getProductsByMerchant_shouldFilter() {
+        ProductRequest r1 = new ProductRequest();
+        r1.setName("Pain"); r1.setMerchantId("merchant-A");
+        productService.createProduct(r1);
+
+        ProductRequest r2 = new ProductRequest();
+        r2.setName("Pomme"); r2.setMerchantId("merchant-B");
+        productService.createProduct(r2);
+
+        List<ProductResponse> merchantAProducts = productService.getProductsByMerchant("merchant-A");
+
+        assertEquals(1, merchantAProducts.size());
+        assertEquals("Pain", merchantAProducts.get(0).getName());
+    }
+
+    // ==========================================
+    // Test 6 : Filtrer par catégorie
     // ==========================================
     @Test
     @DisplayName("getProductsByCategory : doit filtrer par catégorie")
@@ -117,7 +139,7 @@ class ProductServiceTest {
     }
 
     // ==========================================
-    // Test 6 : Mise à jour d'un produit
+    // Test 7 : Mise à jour d'un produit
     // ==========================================
     @Test
     @DisplayName("updateProduct : doit modifier le produit")
@@ -138,7 +160,7 @@ class ProductServiceTest {
     }
 
     // ==========================================
-    // Test 7 : Suppression
+    // Test 8 : Suppression
     // ==========================================
     @Test
     @DisplayName("deleteProduct : doit supprimer le produit")
@@ -153,7 +175,7 @@ class ProductServiceTest {
     }
 
     // ==========================================
-    // Test 8 : Suppression d'un produit inexistant
+    // Test 9 : Suppression d'un produit inexistant
     // ==========================================
     @Test
     @DisplayName("deleteProduct : doit échouer si le produit n'existe pas")

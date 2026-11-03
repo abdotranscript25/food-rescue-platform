@@ -3,8 +3,17 @@ import { useNavigate } from 'react-router-dom';
 
 export const useAuth = () => {
   const navigate = useNavigate();
-  const { token, email, role, firstName, lastName, isAuthenticated, setAuth, logout } =
-    useAuthStore();
+  const {
+    id,
+    email,
+    role,
+    firstName,
+    lastName,
+    mfaEnabled,
+    isAuthenticated,
+    setAuth,
+    logout
+  } = useAuthStore();
 
   const handleLogout = () => {
     logout();
@@ -12,11 +21,13 @@ export const useAuth = () => {
   };
 
   return {
-    token,
+    id,
+    merchantId: id, // Alias pratique pour les pages marchandes
     email,
     role,
     firstName,
     lastName,
+    mfaEnabled,
     isAuthenticated,
     setAuth,
     logout: handleLogout,

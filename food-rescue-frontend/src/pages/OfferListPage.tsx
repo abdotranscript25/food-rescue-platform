@@ -24,9 +24,9 @@ export default function OfferListPage() {
             offer.productId
               ? productApi.getProductById(offer.productId).catch(() => undefined)
               : Promise.resolve(undefined),
-            userApi
-              .getProfileById(offer.merchantId)
-              .catch(() => undefined),
+            offer.merchantId
+              ? userApi.getProfileById(offer.merchantId).catch(() => undefined)
+              : Promise.resolve(undefined),
           ]);
           return { ...offer, product, merchant };
         })

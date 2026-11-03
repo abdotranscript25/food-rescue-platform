@@ -20,22 +20,24 @@ public class JwtService {
     @Value("${jwt.secret}")
     private String secretKey;
 
-    // Extraire l'email (subject) du token
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
     }
 
-    // Extraire la date d'expiration
+    // 💡 Nouvelle méthode pour extraire l'UUID utilisateur stocké dans le JWT
+    public String extractUserId(String token) {
+        Claims claims = extractAllClaims(token);
+        return claims.get("userId", String.class);
+    }
+
     public Date extractExpiration(String token) {
         return extractClaim(token, Claims::getExpiration);
     }
 
-    // Vérifier si le token est expiré
     public boolean isTokenExpired(String token) {
         return extractExpiration(token).before(new Date());
     }
 
-    // Extraire les rôles sous forme de SimpleGrantedAuthority
     public List<SimpleGrantedAuthority> extractAuthorities(String token) {
         Claims claims = extractAllClaims(token);
         Object rolesObj = claims.get("roles");
@@ -48,13 +50,11 @@ public class JwtService {
         return List.of();
     }
 
-    // Méthode générique pour extraire un claim
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);
     }
 
-    // Parser le token et vérifier la signature
     private Claims extractAllClaims(String token) {
         return Jwts.parser()
                 .verifyWith(getSignInKey())
@@ -63,7 +63,6 @@ public class JwtService {
                 .getPayload();
     }
 
-    // Construire la clé de signature
     private SecretKey getSignInKey() {
         byte[] keyBytes = Decoders.BASE64.decode(secretKey);
         return Keys.hmacShaKeyFor(keyBytes);

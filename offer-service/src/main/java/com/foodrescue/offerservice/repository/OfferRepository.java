@@ -11,18 +11,14 @@ import java.util.List;
 @Repository
 public interface OfferRepository extends JpaRepository<Offer, Long> {
 
-    // Recherche par statut
     List<Offer> findByStatus(OfferStatus status);
 
-    // Recherche par merchant
-    List<Offer> findByMerchantId(Long merchantId);
+    // 💡 merchantId est maintenant un String (UUID)
+    List<Offer> findByMerchantId(String merchantId);
 
-    // Recherche par product
     List<Offer> findByProductId(Long productId);
 
-    // Recherche des offres disponibles (à afficher aux clients)
     List<Offer> findByStatusAndRemainingQuantityGreaterThan(OfferStatus status, Integer minQuantity);
 
-    // Recherche des offres expirées (pour un job de nettoyage)
     List<Offer> findByStatusAndExpiresAtBefore(OfferStatus status, LocalDateTime date);
 }

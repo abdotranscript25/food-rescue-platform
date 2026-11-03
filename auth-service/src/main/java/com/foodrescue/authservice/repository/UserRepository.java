@@ -9,10 +9,9 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface UserRepository extends JpaRepository<User, Long> {
+public interface UserRepository extends JpaRepository<User, String> { // ⬅️ Changé de Long à String (UUID)
     Optional<User> findByEmail(String email);
     boolean existsByEmail(String email);
 
-    // AJOUT : Recherche par statut
     List<User> findByStatus(UserStatus status);
 }

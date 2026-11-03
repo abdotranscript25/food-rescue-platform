@@ -1,5 +1,5 @@
 export interface UserProfile {
-  id: number;
+  id: string; // 👈 Modifié en string (UUID)
   firstName: string;
   lastName: string;
   email: string;

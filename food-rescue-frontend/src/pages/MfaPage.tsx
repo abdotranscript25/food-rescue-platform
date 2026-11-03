@@ -11,6 +11,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { authApi } from '@/api/authApi';
 import { useAuthStore } from '@/store/authStore';
 
+// Décodage du JWT pour extraire l'UUID
+function extractUserIdFromJwt(token: string): string | null {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    const decoded = JSON.parse(jsonPayload);
+    const extracted = decoded.id || decoded.userId || decoded.merchantId || decoded.consumerId || decoded.sub || null;
+    return extracted ? String(extracted) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 export default function MfaPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -24,7 +43,6 @@ export default function MfaPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // Si on arrive ici sans partialToken, on redirige vers login
     if (!partialToken) {
       navigate('/login');
     }
@@ -41,18 +59,36 @@ export default function MfaPage() {
     setIsLoading(true);
     try {
       const response = await authApi.mfaValidate({ partialToken, code });
+
       if (response.token) {
+        const userEmail = response.email || email || '';
+
+        let resolvedId =
+          response.id ||
+          (response as any).userId ||
+          (response as any).user?.id ||
+          extractUserIdFromJwt(response.token) ||
+          useAuthStore.getState().id;
+
+        if (!resolvedId) {
+          toast.error("Impossible d'extraire l'identifiant du compte.");
+          return;
+        }
+
         setAuth({
-          token: response.token,
-          email: response.email,
+          id: String(resolvedId),
+          email: userEmail,
           role: response.role,
           firstName: response.firstName,
           lastName: response.lastName,
+          mfaEnabled: true,
         });
+
         toast.success('Connexion réussie ! 🌿');
         navigate('/dashboard');
       }
     } catch (error: any) {
+      console.error("Erreur validation MFA :", error);
       const message =
         error.response?.data?.message || 'Code MFA invalide. Réessayez.';
       toast.error(message);

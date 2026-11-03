@@ -2,6 +2,7 @@ package com.foodrescue.productservice.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.foodrescue.productservice.dto.ProductRequest;
+import com.foodrescue.productservice.entity.Product;
 import com.foodrescue.productservice.repository.ProductRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -13,6 +14,8 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.time.LocalDateTime;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -36,6 +39,15 @@ class ProductControllerTest {
         productRepository.deleteAll();
     }
 
+    // Helper pour créer un produit en base
+    private Product createTestProduct(String name, String merchantId) {
+        return productRepository.save(Product.builder()
+                .name(name)
+                .merchantId(merchantId)
+                .createdAt(LocalDateTime.now())
+                .build());
+    }
+
     // ==========================================
     // Test 1 : Création avec MERCHANT
     // ==========================================
@@ -46,13 +58,15 @@ class ProductControllerTest {
         ProductRequest request = new ProductRequest();
         request.setName("Pain Bio");
         request.setCategory("Boulangerie");
+        request.setMerchantId("merchant-uuid-123");
 
         mockMvc.perform(post("/api/products")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("Pain Bio"))
-                .andExpect(jsonPath("$.category").value("Boulangerie"));
+                .andExpect(jsonPath("$.category").value("Boulangerie"))
+                .andExpect(jsonPath("$.merchantId").value("merchant-uuid-123"));
     }
 
     // ==========================================
@@ -92,7 +106,26 @@ class ProductControllerTest {
     @Test
     @DisplayName("GET /api/products : public, sans auth")
     void getAllProducts_shouldBePublic() throws Exception {
+        createTestProduct("Pain", "merchant-1");
+
         mockMvc.perform(get("/api/products"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    // ==========================================
+    // 🆕 Test 5 : GET par Merchant (NOUVEAU)
+    // ==========================================
+    @Test
+    @DisplayName("GET /api/products/merchant/{merchantId} : doit filtrer par marchand")
+    void getProductsByMerchant_shouldReturnFilteredList() throws Exception {
+        createTestProduct("Pain", "merchant-A");
+        createTestProduct("Croissant", "merchant-A");
+        createTestProduct("Pomme", "merchant-B");
+
+        mockMvc.perform(get("/api/products/merchant/merchant-A"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].merchantId").value("merchant-A"));
     }
 }

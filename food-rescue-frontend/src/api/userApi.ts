@@ -2,7 +2,7 @@ import axiosClient from './axiosClient';
 import type { UserProfile } from '@/types/user';
 
 export const userApi = {
-  getProfileById: async (id: number): Promise<UserProfile> => {
+  getProfileById: async (id: string): Promise<UserProfile> => {
     const { data } = await axiosClient.get<UserProfile>(`/api/users/profiles/${id}`);
     return data;
   },

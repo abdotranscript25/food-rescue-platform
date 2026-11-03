@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.foodrescue</groupId>
+    <artifactId>food-rescue-platform</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>food-rescue-platform</name>
+    <description>Aggregator POM for all Food Rescue microservices</description>
+
+    <properties>
+        <java.version>21</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <sonar.organization>abdotranscript25</sonar.organization>
+        <sonar.projectKey>abdotranscript25_food-rescue-platform</sonar.projectKey>
+    </properties>
+
+    <modules>
+        <module>api-gateway</module>
+        <module>auth-service</module>
+        <module>discovery-service</module>
+        <module>notification-service</module>
+        <module>offer-service</module>
+        <module>payment-service</module>
+        <module>product-service</module>
+        <module>reservation-service</module>
+        <module>user-service</module>
+    </modules>
+</project>

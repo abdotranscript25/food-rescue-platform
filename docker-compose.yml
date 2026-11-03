@@ -9,6 +9,7 @@ services:
       - "8761:8761"
     networks:
       - foodrescue-network
+    restart: unless-stopped
 
   # ================================
   # Broker de Messages (RabbitMQ)
@@ -26,6 +27,7 @@ services:
       - rabbitmq-data:/var/lib/rabbitmq
     networks:
       - foodrescue-network
+    restart: unless-stopped
 
   # ================================
   # Bases de données PostgreSQL
@@ -34,6 +36,7 @@ services:
     image: postgres:16
     container_name: postgres-offers
     environment:
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: foodrescue_offers
     ports:
@@ -42,11 +45,13 @@ services:
       - postgres-offers-data:/var/lib/postgresql/data
     networks:
       - foodrescue-network
+    restart: unless-stopped
 
   postgres-reservations:
     image: postgres:16
     container_name: postgres-reservations
     environment:
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: foodrescue_reservations
     ports:
@@ -55,11 +60,13 @@ services:
       - postgres-reservations-data:/var/lib/postgresql/data
     networks:
       - foodrescue-network
+    restart: unless-stopped
 
   postgres-auth:
     image: postgres:16
     container_name: postgres-auth
     environment:
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: foodrescue_auth
     ports:
@@ -68,11 +75,13 @@ services:
       - postgres-auth-data:/var/lib/postgresql/data
     networks:
       - foodrescue-network
+    restart: unless-stopped
 
   postgres-users:
     image: postgres:16
     container_name: user-db-contain
     environment:
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: foodrescue_users
     ports:
@@ -81,11 +90,13 @@ services:
       - postgres-users-data:/var/lib/postgresql/data
     networks:
       - foodrescue-network
+    restart: unless-stopped
 
   postgres-products:
     image: postgres:16
     container_name: product-db
     environment:
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: foodrescue_products
     ports:
@@ -94,6 +105,22 @@ services:
       - postgres-products-data:/var/lib/postgresql/data
     networks:
       - foodrescue-network
+    restart: unless-stopped
+
+  postgres-payments:
+    image: postgres:16
+    container_name: postgres-payments
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: foodrescue_payments
+    ports:
+      - "5438:5432"
+    volumes:
+      - postgres-payments-data:/var/lib/postgresql/data
+    networks:
+      - foodrescue-network
+    restart: unless-stopped
 
   # ================================
   # Microservices métier
@@ -111,6 +138,7 @@ services:
       - eureka-server
     networks:
       - foodrescue-network
+    restart: unless-stopped
 
   offer-service:
     image: abdo202/offer-service:latest
@@ -129,6 +157,7 @@ services:
       - postgres-offers
     networks:
       - foodrescue-network
+    restart: unless-stopped
 
   reservation-service:
     image: abdo202/reservation-service:latest
@@ -152,6 +181,7 @@ services:
       - rabbitmq
     networks:
       - foodrescue-network
+    restart: unless-stopped
 
   auth-service:
     image: abdo202/auth-service:latest
@@ -165,11 +195,13 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-auth:5432/foodrescue_auth
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
+      JWT_SECRET: ${JWT_SECRET}
     depends_on:
       - eureka-server
       - postgres-auth
     networks:
       - foodrescue-network
+    restart: unless-stopped
 
   user-service:
     image: abdo202/user-service:latest
@@ -188,6 +220,7 @@ services:
       - postgres-users
     networks:
       - foodrescue-network
+    restart: unless-stopped
 
   notification-service:
     image: abdo202/notification-service:latest
@@ -207,6 +240,7 @@ services:
       - rabbitmq
     networks:
       - foodrescue-network
+    restart: unless-stopped
 
   product-service:
     image: abdo202/product-service:latest
@@ -226,6 +260,27 @@ services:
       - postgres-products
     networks:
       - foodrescue-network
+    restart: unless-stopped
+
+  payment-service:
+    image: abdo202/payment-service:latest
+    container_name: payment-service
+    ports:
+      - "8086:8086"
+    env_file:
+      - .env
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-payments:5432/foodrescue_payments
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      - eureka-server
+      - postgres-payments
+    networks:
+      - foodrescue-network
+    restart: unless-stopped
 
 # ================================
 # Réseau commun
@@ -243,4 +298,5 @@ volumes:
   postgres-auth-data:
   postgres-users-data:
   postgres-products-data:
+  postgres-payments-data:
   rabbitmq-data:

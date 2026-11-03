@@ -12,17 +12,21 @@ export const reservationApi = {
     return data;
   },
 
-  getReservationsByUser: async (consumerId: number): Promise<Reservation[]> => {
+  getReservationsByUser: async (consumerId: string): Promise<Reservation[]> => {
     const { data } = await axiosClient.get<Reservation[]>(`/api/reservations/user/${consumerId}`);
     return data;
   },
 
+  getReservationsByMerchant: async (merchantId: string): Promise<Reservation[]> => {
+    const { data } = await axiosClient.get<Reservation[]>(`/api/reservations/merchant/${merchantId}`);
+    return data;
+  },
+
   createReservation: async (reservation: ReservationRequest): Promise<Reservation> => {
-    // On envoie l'offre et la quantité, le backend récupère l'utilisateur via le token Bearer
     const { data } = await axiosClient.post<Reservation>('/api/reservations', {
       offerId: reservation.offerId,
       quantity: reservation.quantity,
-      consumerId: reservation.consumerId // Optionnel si géré par le token
+      consumerId: reservation.consumerId
     });
     return data;
   },

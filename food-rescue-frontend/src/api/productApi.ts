@@ -1,14 +1,14 @@
 import axiosClient from './axiosClient';
 
 export interface ProductResponse {
-  id: number;
+  id: any;
   name: string;
   description: string;
   category: string;
   imageUrl?: string;
   allergens?: string;
   isPerishable?: boolean;
-  merchantId?: number;
+  merchantId?: string;
   createdAt?: string;
 }
 
@@ -19,7 +19,7 @@ export interface ProductRequest {
   imageUrl?: string;
   allergens?: string;
   isPerishable?: boolean;
-  merchantId?: number;
+  merchantId?: string;
 }
 
 export const productApi = {
@@ -28,12 +28,12 @@ export const productApi = {
     return data;
   },
 
-  getProductsByMerchant: async (merchantId: number): Promise<ProductResponse[]> => {
+  getProductsByMerchant: async (merchantId: string): Promise<ProductResponse[]> => {
     const { data } = await axiosClient.get<ProductResponse[]>(`/api/products/merchant/${merchantId}`);
     return data;
   },
 
-  getProductById: async (id: number): Promise<ProductResponse> => {
+  getProductById: async (id: any): Promise<ProductResponse> => {
     const { data } = await axiosClient.get<ProductResponse>(`/api/products/${id}`);
     return data;
   },
@@ -48,12 +48,12 @@ export const productApi = {
     return data;
   },
 
-  updateProduct: async (id: number, request: ProductRequest): Promise<ProductResponse> => {
+  updateProduct: async (id: any, request: ProductRequest): Promise<ProductResponse> => {
     const { data } = await axiosClient.put<ProductResponse>(`/api/products/${id}`, request);
     return data;
   },
 
-  deleteProduct: async (id: number): Promise<void> => {
+  deleteProduct: async (id: any): Promise<void> => {
     await axiosClient.delete(`/api/products/${id}`);
   },
 };

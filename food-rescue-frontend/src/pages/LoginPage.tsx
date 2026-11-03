@@ -14,6 +14,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { authApi } from '@/api/authApi';
 import { useAuthStore } from '@/store/authStore';
 
+// Décodage du JWT pour extraire l'UUID utilisateur
+function extractUserIdFromJwt(token: string): string | null {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    const decoded = JSON.parse(jsonPayload);
+    const extracted = decoded.id || decoded.userId || decoded.merchantId || decoded.consumerId || decoded.sub || null;
+    return extracted ? String(extracted) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 const loginSchema = z.object({
   email: z.string().email('Email invalide'),
   password: z.string().min(1, 'Mot de passe requis'),
@@ -43,7 +62,6 @@ export default function LoginPage() {
     try {
       const response = await authApi.login(data);
 
-      // Cas MFA requis : redirection vers /mfa avec le partialToken et l'email
       if (response.mfaRequired && response.partialToken) {
         navigate('/mfa', {
           state: { partialToken: response.partialToken, email: response.email },
@@ -51,19 +69,46 @@ export default function LoginPage() {
         return;
       }
 
-      // Cas normal : token JWT complet obtenu immédiatement
-      if (response.token) {
-        setAuth({
-          token: response.token,
-          email: response.email,
-          role: response.role,
-          firstName: response.firstName,
-          lastName: response.lastName,
-        });
-        toast.success(`Bienvenue ${response.firstName} ! 🌿`);
-        navigate('/dashboard');
+      // Extraction de l'UUID (String)
+      let resolvedId =
+        response.id ??
+        (response as any).userId ??
+        (response as any).merchantId ??
+        (response as any).consumerId ??
+        (response as any).user?.id ??
+        (response as any).user?.userId;
+
+      if (resolvedId) {
+        resolvedId = String(resolvedId);
+      } else if (response.token) {
+        resolvedId = extractUserIdFromJwt(response.token);
       }
+
+      const userEmail = response.email || (response as any).user?.email || data.email;
+      const resolvedMfa =
+        (response as any).mfaEnabled ??
+        (response as any).isMfaEnabled ??
+        (response as any).user?.mfaEnabled ??
+        false;
+
+      if (!resolvedId) {
+        toast.error("Impossible de récupérer l'identifiant utilisateur.");
+        return;
+      }
+
+      setAuth({
+        id: resolvedId,
+        email: userEmail,
+        role: response.role || (response as any).user?.role,
+        firstName: response.firstName || (response as any).user?.firstName,
+        lastName: response.lastName || (response as any).user?.lastName,
+        mfaEnabled: resolvedMfa,
+      });
+
+      toast.success(`Bienvenue ${response.firstName || 'sur Food Rescue'} ! 🌿`);
+      navigate('/dashboard');
     } catch (error: any) {
+      console.error("Erreur de connexion :", error);
       const message =
         error.response?.data?.message ||
         'Identifiants incorrects. Veuillez réessayer.';
@@ -75,14 +120,12 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex">
-      {/* LEFT SIDE — Illustration / Branding */}
+      {/* LEFT SIDE — Branding */}
       <div className="hidden lg:flex lg:w-3/5 relative bg-gradient-to-br from-green-600 via-green-700 to-emerald-800 text-white overflow-hidden">
-        {/* Cercles décoratifs */}
         <div className="absolute -top-24 -left-24 w-96 h-96 bg-white/10 rounded-full blur-3xl" />
         <div className="absolute -bottom-32 -right-32 w-[500px] h-[500px] bg-emerald-400/20 rounded-full blur-3xl" />
 
         <div className="relative z-10 flex flex-col justify-between p-12 w-full">
-          {/* Logo */}
           <div className="flex items-center gap-3">
             <div className="bg-white/20 backdrop-blur-sm p-3 rounded-2xl">
               <Leaf className="w-8 h-8" />
@@ -93,7 +136,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Texte principal */}
           <div className="space-y-6 max-w-lg">
             <h2 className="text-4xl lg:text-5xl font-bold leading-tight">
               Sauvons ensemble les surplus alimentaires 🌱
@@ -103,7 +145,6 @@ export default function LoginPage() {
               contre le gaspillage alimentaire au quotidien.
             </p>
 
-            {/* Statistiques */}
             <div className="flex gap-8 pt-6">
               <div>
                 <p className="text-3xl font-bold">10k+</p>
@@ -120,7 +161,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Footer */}
           <p className="text-sm text-green-100">
             © 2026 Food Rescue Platform. Tous droits réservés.
           </p>
@@ -151,7 +191,6 @@ export default function LoginPage() {
             )}
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              {/* Email */}
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">
@@ -169,7 +208,6 @@ export default function LoginPage() {
                 )}
               </div>
 
-              {/* Mot de passe */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Mot de passe</Label>
@@ -195,7 +233,6 @@ export default function LoginPage() {
                 )}
               </div>
 
-              {/* Bouton */}
               <Button
                 type="submit"
                 className="w-full bg-green-600 hover:bg-green-700 text-white h-11"
@@ -215,7 +252,6 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            {/* Lien vers Register */}
             <p className="text-center text-sm text-gray-600 mt-6">
               Pas encore de compte ?{' '}
               <Link

@@ -17,6 +17,7 @@ export interface RegisterRequest {
 }
 
 export interface AuthResponse {
+  id?: string; // 👈 Modifié en string (UUID)
   token?: string;
   partialToken?: string;
   email: string;

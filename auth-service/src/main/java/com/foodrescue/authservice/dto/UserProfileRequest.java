@@ -10,17 +10,12 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class UserProfileRequest {
-    private Long id;
-
-    // AJOUT : firstName / lastName (au lieu de fullName)
+    private String id;          // ⬅️ String (UUID)
     private String firstName;
     private String lastName;
-
     private String email;
-
-    // AJOUT : phone (au lieu de phoneNumber)
     private String phone;
-
     private String address;
     private String city;
+    private String role;        // ⬅️ Bien présent
 }

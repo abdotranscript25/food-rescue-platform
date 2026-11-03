@@ -1,5 +1,6 @@
 package com.foodrescue.authservice.service;
 
+import com.foodrescue.authservice.entity.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
@@ -23,19 +24,17 @@ public class JwtService {
     @Value("${jwt.expiration}")
     private long jwtExpiration;
 
-    @Value("${jwt.partial-expiration}")  // AJOUT MFA
-    private long partialJwtExpiration;   // AJOUT MFA
+    @Value("${jwt.partial-expiration}")
+    private long partialJwtExpiration;
 
-    // ==========================================
-    // 1. Génération du token
-    // ==========================================
-    public String generateToken(UserDetails userDetails) {
+    // Surcharge pour accepter l'entité User et embarquer l'UUID
+    public String generateToken(User user) {
         Map<String, Object> extraClaims = new HashMap<>();
-        // Convertir les autorités en liste de String (ex: ["ROLE_USER"])
-        extraClaims.put("roles", userDetails.getAuthorities().stream()
+        extraClaims.put("userId", user.getId()); // Injection de l'UUID dans le JWT
+        extraClaims.put("roles", user.getAuthorities().stream()
                 .map(org.springframework.security.core.GrantedAuthority::getAuthority)
                 .collect(java.util.stream.Collectors.toList()));
-        return generateToken(extraClaims, userDetails);
+        return generateToken(extraClaims, user);
     }
 
     public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
@@ -48,20 +47,9 @@ public class JwtService {
                 .compact();
     }
 
-    // ==========================================
-    // AJOUT MFA : Génération du token partiel
-    // ==========================================
-    /**
-     * Génère un token partiel valide 5 minutes.
-     * Ce token contient uniquement :
-     *  - L'email de l'utilisateur (subject)
-     *  - Le claim spécial "mfa_pending": true
-     * Il ne contient PAS les rôles.
-     * Il sert uniquement à l'étape de validation MFA.
-     */
     public String generatePartialToken(String email) {
         Map<String, Object> extraClaims = new HashMap<>();
-        extraClaims.put("mfa_pending", true);   // Marqueur clé
+        extraClaims.put("mfa_pending", true);
         return Jwts.builder()
                 .claims(extraClaims)
                 .subject(email)
@@ -71,13 +59,6 @@ public class JwtService {
                 .compact();
     }
 
-    // ==========================================
-    // AJOUT MFA : Vérification du token partiel
-    // ==========================================
-    /**
-     * Vérifie si un token est un partial token MFA.
-     * @return true si le claim "mfa_pending" vaut true.
-     */
     public boolean isPartialToken(String token) {
         try {
             Boolean mfaPending = extractClaim(token, claims -> claims.get("mfa_pending", Boolean.class));
@@ -87,9 +68,6 @@ public class JwtService {
         }
     }
 
-    // ==========================================
-    // 2. Validation du token
-    // ==========================================
     public boolean isTokenValid(String token, UserDetails userDetails) {
         final String username = extractUsername(token);
         return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
@@ -99,9 +77,6 @@ public class JwtService {
         return extractExpiration(token).before(new Date());
     }
 
-    // ==========================================
-    // 3. Extraction des informations
-    // ==========================================
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
     }
@@ -123,9 +98,6 @@ public class JwtService {
                 .getPayload();
     }
 
-    // ==========================================
-    // 4. Clé de signature
-    // ==========================================
     private SecretKey getSignInKey() {
         byte[] keyBytes = Decoders.BASE64.decode(secretKey);
         return Keys.hmacShaKeyFor(keyBytes);

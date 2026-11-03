@@ -17,11 +17,9 @@ import java.time.LocalDateTime;
 public class UserProfile {
 
     @Id
-    private Long id; // Identifiant synchronisé avec auth-service
+    @Column(length = 36, nullable = false, updatable = false)
+    private String id;   // ⬅️ L'ID vient de auth-service, pas de @GeneratedValue
 
-    // ==========================================
-    // AJOUT : firstName / lastName (au lieu de fullName)
-    // ==========================================
     @Column(nullable = false)
     private String firstName;
 
@@ -31,20 +29,20 @@ public class UserProfile {
     @Column(nullable = false, unique = true)
     private String email;
 
-    // ==========================================
-    // AJOUT : phone (au lieu de phoneNumber)
-    // ==========================================
     @Column(length = 20)
     private String phone;
 
     private String address;
     private String city;
 
+    private String role;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     @PrePersist
     protected void onCreate() {
+        // ⬅️ On ne génère PLUS l'UUID ici, il est fourni par auth-service
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }

@@ -22,67 +22,47 @@ public class Offer {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // ==========================================
-    // Référence au Product (venant de product-service)
-    // ==========================================
     @Column(name = "product_id")
     private Long productId;
 
-    // ==========================================
-    // Champ transient pour injecter les détails du produit via Feign
-    // ==========================================
     @Transient
     private ProductResponseDto product;
 
-    @Column(nullable = false)
-    private Long merchantId;
+    // 💡 Changé de Long à String (UUID)
+    @Column(name = "merchant_id", length = 36, nullable = false)
+    private String merchantId;
 
-    // ==========================================
-    // Champs optionnels (legacy - normalement viennent de Product)
-    // ==========================================
     @Column
     private String title;
 
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    // ==========================================
-    // Prix (migrés de Double → BigDecimal)
-    // ==========================================
+    @Column(name = "image_url")
+    private String imageUrl;
+
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal originalPrice;
 
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal discountedPrice;
 
-    // ==========================================
-    // Quantité initiale + Quantité restante
-    // ==========================================
     @Column(nullable = false)
     private Integer quantity;
 
     @Column(nullable = false)
     private Integer remainingQuantity;
 
-    // ==========================================
-    // Période de disponibilité
-    // ==========================================
     @Column(nullable = false)
     private LocalDateTime availableFrom;
 
     @Column(nullable = false)
     private LocalDateTime expiresAt;
 
-    // ==========================================
-    // Statut (DRAFT, PUBLISHED, AVAILABLE, SOLD_OUT, EXPIRED, CANCELLED)
-    // ==========================================
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private OfferStatus status;
 
-    // ==========================================
-    // Callbacks JPA : valeurs par défaut avant insertion
-    // ==========================================
     @PrePersist
     public void prePersist() {
         if (this.remainingQuantity == null) {

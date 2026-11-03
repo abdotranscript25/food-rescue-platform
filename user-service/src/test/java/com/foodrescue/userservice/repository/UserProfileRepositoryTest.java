@@ -28,16 +28,17 @@ class UserProfileRepositoryTest {
     @DisplayName("Save : doit créer un profil")
     void save_shouldCreateProfile() {
         UserProfile profile = UserProfile.builder()
-                .id(1L)
+                .id("1") // ⬅️ String au lieu de 1L
                 .firstName("Alice").lastName("Dupont")
                 .email("alice@test.com").phone("+33612345678")
                 .address("1 rue de Paris").city("Paris")
+                .role("CONSUMER")
                 .build();
 
         UserProfile saved = userProfileRepository.save(profile);
 
         assertNotNull(saved);
-        assertEquals(1L, saved.getId());
+        assertEquals("1", saved.getId()); // ⬅️ String
         assertNotNull(saved.getCreatedAt());
         assertNotNull(saved.getUpdatedAt());
     }
@@ -46,14 +47,15 @@ class UserProfileRepositoryTest {
     @DisplayName("findByEmail : doit trouver un profil par email")
     void findByEmail_shouldReturnProfile() {
         UserProfile profile = UserProfile.builder()
-                .id(2L).firstName("Bob").lastName("Martin")
-                .email("bob@test.com").build();
+                .id("2").firstName("Bob").lastName("Martin")
+                .email("bob@test.com").role("MERCHANT").build();
         userProfileRepository.save(profile);
 
         Optional<UserProfile> found = userProfileRepository.findByEmail("bob@test.com");
 
         assertTrue(found.isPresent());
         assertEquals("Bob", found.get().getFirstName());
+        assertEquals("MERCHANT", found.get().getRole());
     }
 
     @Test

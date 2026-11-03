@@ -9,7 +9,7 @@ export type OfferStatus =
 export interface Offer {
   id: number;
   productId: number | null;
-  merchantId: number;
+  merchantId: string; // 👈 Modifié en string (UUID)
   title: string | null;
   description: string | null;
   originalPrice: number;
@@ -21,7 +21,6 @@ export interface Offer {
   status: OfferStatus;
 }
 
-// Vue enrichie (Offer + Product + Merchant)
 export interface OfferWithDetails extends Offer {
   product?: {
     id: number;
@@ -31,7 +30,7 @@ export interface OfferWithDetails extends Offer {
     imageUrl: string | null;
   };
   merchant?: {
-    id: number;
+    id: string; // 👈 Modifié en string (UUID)
     firstName: string;
     lastName: string;
     city: string | null;

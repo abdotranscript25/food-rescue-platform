@@ -21,11 +21,8 @@ public class Reservation {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // ==========================================
-    // AJOUT : consumerId (au lieu de userId)
-    // ==========================================
-    @Column(nullable = false)
-    private Long consumerId;
+    @Column(name = "consumer_id", length = 36, nullable = false)
+    private String consumerId; // 💡 String (UUID)
 
     @Column(nullable = false)
     private Long offerId;
@@ -33,9 +30,6 @@ public class Reservation {
     @Column(nullable = false)
     private Integer quantity;
 
-    // ==========================================
-    // AJOUT : totalPrice (calculé : quantity × discountedPrice)
-    // ==========================================
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal totalPrice;
 
@@ -46,9 +40,6 @@ public class Reservation {
     @Column(nullable = false)
     private LocalDateTime reservationDate;
 
-    // ==========================================
-    // AJOUT : cancelledAt (date d'annulation)
-    // ==========================================
     @Column
     private LocalDateTime cancelledAt;
 }

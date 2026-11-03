@@ -12,12 +12,11 @@ import { useAuthStore } from '@/store/authStore';
 export default function ConsumerOffersPage() {
   const [search, setSearch] = useState('');
   const [quantities, setQuantities] = useState<{ [key: number]: number }>({});
-  const { user } = useAuthStore();
+  const { id: userAuthId } = useAuthStore();
   const queryClient = useQueryClient();
 
-  // Extraction robuste et sécurisée de l'ID consommateur
-  const rawId = user?.id ?? (user as any)?.sub;
-  const consumerId = typeof rawId === 'string' ? parseInt(rawId, 10) : rawId;
+  // 💡 Récupération directe de l'UUID sous forme de string
+  const consumerId = userAuthId ? String(userAuthId) : undefined;
 
   // Récupération via offerApi centralisé
   const { data: offers = [], isLoading } = useQuery({
@@ -51,7 +50,7 @@ export default function ConsumerOffersPage() {
   };
 
   const handleReserve = (offer: any) => {
-    if (!user || !consumerId) {
+    if (!consumerId) {
       alert('Veuillez vous connecter en tant que consommateur pour réserver.');
       return;
     }
@@ -115,14 +114,20 @@ export default function ConsumerOffersPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredOffers.map((offer: any) => {
             const currentQty = quantities[offer.id] || 1;
+
+            const isExpired =
+              offer.status === 'EXPIRED' ||
+              (offer.expiresAt && new Date(offer.expiresAt) < new Date());
+
+            const maxStock = offer.remainingQuantity ?? 0;
+            const cantReserve = isExpired || maxStock <= 0;
+
             const discountPercentage =
               offer.originalPrice && offer.originalPrice > 0
                 ? Math.round(
                     ((offer.originalPrice - offer.discountedPrice) / offer.originalPrice) * 100
                   )
                 : 0;
-
-            const maxStock = offer.remainingQuantity ?? 0;
 
             return (
               <Card key={offer.id} className="p-5 flex flex-col justify-between bg-white shadow-sm hover:shadow-md transition-shadow">
@@ -131,11 +136,15 @@ export default function ConsumerOffersPage() {
                     <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-green-50 text-green-700">
                       {offer.product?.category || 'Anti-gaspillage'}
                     </span>
-                    {discountPercentage > 0 && (
+                    {isExpired ? (
+                      <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-red-50 text-red-600">
+                        Expiré
+                      </span>
+                    ) : discountPercentage > 0 ? (
                       <span className="text-xs font-bold px-2 py-0.5 rounded bg-red-100 text-red-600">
                         -{discountPercentage}%
                       </span>
-                    )}
+                    ) : null}
                   </div>
 
                   <h3 className="text-lg font-semibold text-gray-900">
@@ -163,12 +172,11 @@ export default function ConsumerOffersPage() {
                     </p>
                     <p className="flex items-center gap-1.5">
                       <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                      <span>Expire le : {new Date(offer.expiresAt).toLocaleDateString('fr-FR')}</span>
+                      <span>Expire le : {offer.expiresAt ? new Date(offer.expiresAt).toLocaleString('fr-FR') : 'N/A'}</span>
                     </p>
                   </div>
                 </div>
 
-                {/* Section d'action de réservation */}
                 <div className="mt-5 pt-3 border-t border-gray-100 flex items-center gap-3">
                   <input
                     type="number"
@@ -177,15 +185,23 @@ export default function ConsumerOffersPage() {
                     value={currentQty}
                     onChange={(e) => handleQuantityChange(offer.id, Number(e.target.value))}
                     className="w-16 p-2 text-sm border rounded-md text-center bg-gray-50 focus:bg-white"
-                    disabled={maxStock <= 0}
+                    disabled={cantReserve}
                   />
                   <Button
                     onClick={() => handleReserve(offer)}
-                    disabled={reservationMutation.isPending || maxStock <= 0}
-                    className="flex-1 bg-green-600 hover:bg-green-700 gap-2 text-white"
+                    disabled={reservationMutation.isPending || cantReserve}
+                    className={`flex-1 gap-2 text-white ${
+                      cantReserve ? 'bg-gray-400 hover:bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'
+                    }`}
                   >
                     <ShoppingBag className="w-4 h-4" />
-                    {reservationMutation.isPending ? 'Réservation...' : maxStock > 0 ? 'Réserver' : 'Épuisé'}
+                    {reservationMutation.isPending
+                      ? 'Réservation...'
+                      : isExpired
+                      ? 'Expiré'
+                      : maxStock > 0
+                      ? 'Réserver'
+                      : 'Épuisé'}
                   </Button>
                 </div>
               </Card>

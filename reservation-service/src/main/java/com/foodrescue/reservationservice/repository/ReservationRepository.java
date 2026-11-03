@@ -10,12 +10,11 @@ import java.util.List;
 @Repository
 public interface ReservationRepository extends JpaRepository<Reservation, Long> {
 
-    // Remplacer findByUserId par findByConsumerId
-    List<Reservation> findByConsumerId(Long consumerId);
+    List<Reservation> findByConsumerId(String consumerId); // 💡 String (UUID)
 
     List<Reservation> findByOfferId(Long offerId);
 
-    // Nouveaux filtres
     List<Reservation> findByStatus(ReservationStatus status);
-    List<Reservation> findByConsumerIdAndStatus(Long consumerId, ReservationStatus status);
+
+    List<Reservation> findByConsumerIdAndStatus(String consumerId, ReservationStatus status);
 }

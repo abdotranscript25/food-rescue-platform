@@ -11,26 +11,27 @@ import type { OfferWithDetails } from '@/types/offer';
 interface OfferFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  offerToEdit?: OfferWithDetails | null; // Reçoit l'offre à modifier (optionnel)
+  offerToEdit?: OfferWithDetails | null;
 }
 
 export default function OfferFormDialog({ open, onOpenChange, offerToEdit }: OfferFormDialogProps) {
-  const { user } = useAuthStore();
+  const { id: userAuthId } = useAuthStore();
   const queryClient = useQueryClient();
-  const merchantId = user?.id ?? 1;
+
+  // 💡 L'ID du marchand est un UUID (String)
+  const merchantId = userAuthId ? String(userAuthId) : '';
 
   const isEditing = !!offerToEdit;
 
-  const [productId, setProductId] = useState<number | ''>('');
+  const [productId, setProductId] = useState<string>('');
   const [originalPrice, setOriginalPrice] = useState<number>(0);
   const [discountedPrice, setDiscountedPrice] = useState<number>(0);
   const [quantity, setQuantity] = useState<number>(1);
   const [expiresAt, setExpiresAt] = useState<string>('');
 
-  // Remplir ou réinitialiser le formulaire à l'ouverture ou au changement d'offre à éditer
   useEffect(() => {
     if (offerToEdit) {
-      setProductId(offerToEdit.productId ?? '');
+      setProductId(offerToEdit.productId ? String(offerToEdit.productId) : '');
       setOriginalPrice(offerToEdit.originalPrice ?? 0);
       setDiscountedPrice(offerToEdit.discountedPrice ?? 0);
       setQuantity(offerToEdit.quantity ?? 1);
@@ -51,7 +52,6 @@ export default function OfferFormDialog({ open, onOpenChange, offerToEdit }: Off
     queryFn: productApi.getAllProducts,
   });
 
-  // Mutation pour la création
   const createMutation = useMutation({
     mutationFn: offerApi.createOffer,
     onSuccess: () => {
@@ -60,7 +60,6 @@ export default function OfferFormDialog({ open, onOpenChange, offerToEdit }: Off
     },
   });
 
-  // Mutation pour la mise à jour
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<OfferWithDetails> }) =>
       offerApi.updateOffer(id, data),
@@ -74,11 +73,11 @@ export default function OfferFormDialog({ open, onOpenChange, offerToEdit }: Off
     e.preventDefault();
     if (!productId || !expiresAt) return;
 
-    const selectedProduct = products.find((p) => p.id === productId);
+    const selectedProduct = products.find((p) => String(p.id) === productId);
 
     const payload = {
       merchantId,
-      productId: Number(productId),
+      productId, // UUID String
       title: selectedProduct?.name ?? offerToEdit?.title ?? 'Offre',
       description: selectedProduct?.description ?? offerToEdit?.description,
       originalPrice,
@@ -112,7 +111,7 @@ export default function OfferFormDialog({ open, onOpenChange, offerToEdit }: Off
             <select
               className="w-full mt-1 p-2 border rounded-md text-sm bg-white"
               value={productId}
-              onChange={(e) => setProductId(Number(e.target.value))}
+              onChange={(e) => setProductId(e.target.value)}
               required
             >
               <option value="">Sélectionner un produit</option>

@@ -10,11 +10,12 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class AuthResponse {
+    private String id; // Changé de Long à String (UUID)
     private String token;
-    private String partialToken; // ⬅️ Nécessaire pour le retour MFA
+    private String partialToken;
     private String email;
     private String role;
     private String firstName;
     private String lastName;
-    private boolean mfaRequired; // ⬅️ Aligné avec mfaRequired(...) utilisé dans AuthService
+    private boolean mfaRequired;
 }

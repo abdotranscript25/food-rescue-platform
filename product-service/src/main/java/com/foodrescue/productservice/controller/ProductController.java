@@ -18,30 +18,18 @@ public class ProductController {
 
     private final ProductService productService;
 
-    // ==========================================
-    // Création (MERCHANT ou ADMIN)
-    // ==========================================
-
     @PostMapping
     public ResponseEntity<ProductResponse> createProduct(@Valid @RequestBody ProductRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(productService.createProduct(request));
     }
-
-    // ==========================================
-    // Lecture (public)
-    // ==========================================
 
     @GetMapping
     public ResponseEntity<List<ProductResponse>> getAllProducts() {
         return ResponseEntity.ok(productService.getAllProducts());
     }
 
-    // ==========================================
-    // AJOUT : Récupération par Marchand
-    // ==========================================
-
     @GetMapping("/merchant/{merchantId}")
-    public ResponseEntity<List<ProductResponse>> getProductsByMerchant(@PathVariable Long merchantId) {
+    public ResponseEntity<List<ProductResponse>> getProductsByMerchant(@PathVariable String merchantId) { // 💡 String (UUID)
         return ResponseEntity.ok(productService.getProductsByMerchant(merchantId));
     }
 
@@ -55,10 +43,6 @@ public class ProductController {
         return ResponseEntity.ok(productService.getProductsByCategory(category));
     }
 
-    // ==========================================
-    // AJOUT : Mise à jour (MERCHANT ou ADMIN)
-    // ==========================================
-
     @PutMapping("/{id}")
     public ResponseEntity<ProductResponse> updateProduct(
             @PathVariable Long id,
@@ -66,10 +50,6 @@ public class ProductController {
     ) {
         return ResponseEntity.ok(productService.updateProduct(id, request));
     }
-
-    // ==========================================
-    // AJOUT : Suppression (ADMIN)
-    // ==========================================
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {

@@ -16,15 +16,17 @@ export default function MyOffersPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedOffer, setSelectedOffer] = useState<OfferWithDetails | null>(null);
 
-  const { user } = useAuthStore();
+  const { id: userAuthId } = useAuthStore();
   const queryClient = useQueryClient();
 
-  const merchantId = user?.id ?? 1;
+  // 💡 Récupération directe de l'UUID sous forme de string
+  const merchantId = userAuthId ? String(userAuthId) : '';
 
   // Récupération des offres du marchand
   const { data: offers = [], isLoading } = useQuery({
     queryKey: ['merchant-offers', merchantId],
     queryFn: () => offerApi.getOffersByMerchant(merchantId),
+    enabled: !!merchantId,
   });
 
   // Mutation pour publier une offre (DRAFT -> AVAILABLE)
@@ -63,7 +65,6 @@ export default function MyOffersPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">
@@ -76,7 +77,7 @@ export default function MyOffersPage() {
 
         <Button
           onClick={() => {
-            setSelectedOffer(null); // Mode création
+            setSelectedOffer(null);
             setIsDialogOpen(true);
           }}
           className="bg-green-600 hover:bg-green-700 gap-2 shadow-sm"
@@ -86,7 +87,6 @@ export default function MyOffersPage() {
         </Button>
       </div>
 
-      {/* Barre de recherche */}
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
         <Input
@@ -97,7 +97,6 @@ export default function MyOffersPage() {
         />
       </div>
 
-      {/* Chargement par Skeletons */}
       {isLoading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -110,7 +109,6 @@ export default function MyOffersPage() {
         </div>
       )}
 
-      {/* État vide */}
       {!isLoading && offers.length === 0 && (
         <Card className="p-16 text-center border-dashed bg-white shadow-sm">
           <Tag className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -133,14 +131,12 @@ export default function MyOffersPage() {
         </Card>
       )}
 
-      {/* Liste des offres avec boutons de gestion par statut */}
       {!isLoading && filtered.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.map((offer) => (
             <div key={offer.id} className="flex flex-col justify-between bg-white rounded-2xl border border-gray-100 shadow-sm p-3 hover:shadow-md transition-shadow">
               <OfferCard offer={offer} />
 
-              {/* Actions de gestion du marchand */}
               <div className="flex items-center gap-1.5 mt-4 pt-3 border-t border-gray-100">
                 {offer.status === 'DRAFT' && (
                   <Button
@@ -174,13 +170,12 @@ export default function MyOffersPage() {
                   </span>
                 )}
 
-                {/* Bouton Modifier */}
                 <Button
                   size="sm"
                   variant="outline"
                   className="text-gray-600 border-gray-200 hover:bg-gray-50 px-2"
                   onClick={() => {
-                    setSelectedOffer(offer); // Mode édition
+                    setSelectedOffer(offer);
                     setIsDialogOpen(true);
                   }}
                   title="Modifier l'offre"
@@ -188,7 +183,6 @@ export default function MyOffersPage() {
                   <Pencil className="w-3.5 h-3.5" />
                 </Button>
 
-                {/* Bouton de suppression définitive */}
                 <Button
                   size="sm"
                   variant="outline"
@@ -209,7 +203,6 @@ export default function MyOffersPage() {
         </div>
       )}
 
-      {/* Dialog de création ou de modification d'offre */}
       <OfferFormDialog
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}

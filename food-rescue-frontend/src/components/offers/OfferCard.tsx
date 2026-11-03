@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { MapPin, Clock, TrendingDown } from 'lucide-react';
+import { MapPin, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import type { OfferWithDetails } from '@/types/offer';
@@ -22,7 +22,6 @@ export default function OfferCard({ offer }: OfferCardProps) {
   return (
     <Link to={`/offers/${offer.id}`}>
       <Card className="overflow-hidden hover:shadow-lg transition-all duration-200 hover:-translate-y-1 cursor-pointer h-full">
-        {/* Image */}
         <div className="relative aspect-video bg-gray-100 overflow-hidden">
           {offer.product?.imageUrl ? (
             <img
@@ -37,14 +36,12 @@ export default function OfferCard({ offer }: OfferCardProps) {
             </div>
           )}
 
-          {/* Badge réduction */}
           {discount > 0 && (
             <Badge className="absolute top-2 left-2 bg-red-500 hover:bg-red-500 text-white font-semibold">
               -{discount}%
             </Badge>
           )}
 
-          {/* Badge stock */}
           {offer.remainingQuantity <= 3 && offer.remainingQuantity > 0 && (
             <Badge className="absolute top-2 right-2 bg-orange-500 hover:bg-orange-500 text-white">
               Plus que {offer.remainingQuantity}
@@ -52,7 +49,6 @@ export default function OfferCard({ offer }: OfferCardProps) {
           )}
         </div>
 
-        {/* Contenu */}
         <div className="p-4 space-y-3">
           <div>
             <p className="text-xs text-green-600 font-medium uppercase">
@@ -63,7 +59,6 @@ export default function OfferCard({ offer }: OfferCardProps) {
             </h3>
           </div>
 
-          {/* Merchant */}
           {offer.merchant && (
             <p className="text-xs text-gray-500 flex items-center gap-1">
               <MapPin className="w-3 h-3" />
@@ -72,7 +67,6 @@ export default function OfferCard({ offer }: OfferCardProps) {
             </p>
           )}
 
-          {/* Prix */}
           <div className="flex items-baseline gap-2">
             <span className="text-xl font-bold text-green-600">
               {offer.discountedPrice.toFixed(2)} MAD
@@ -82,7 +76,6 @@ export default function OfferCard({ offer }: OfferCardProps) {
             </span>
           </div>
 
-          {/* Expiration */}
           <div
             className={cn(
               'flex items-center gap-1 text-xs',

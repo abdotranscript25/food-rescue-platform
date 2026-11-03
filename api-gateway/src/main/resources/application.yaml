@@ -6,7 +6,6 @@ spring:
     name: api-gateway
   cloud:
     gateway:
-      # ⬇️ AJOUTER CE BLOC
       globalcors:
         cors-configurations:
           '[/**]':
@@ -17,7 +16,6 @@ spring:
             allowedHeaders: "*"
             allowCredentials: true
             maxAge: 3600
-      # ⬆️ FIN AJOUT
 
       routes:
         - id: auth-service-route
@@ -33,16 +31,22 @@ spring:
           filters:
             - SetStatus=403
 
-        # 2. Route normale offer-service pour toutes les autres requêtes
+        # 2. Route normale offer-service pour les offres et les avis
         - id: offer-service-route
           uri: lb://offer-service
           predicates:
-            - Path=/api/offers/**
+            - Path=/api/offers/**, /api/reviews/**
 
         - id: reservation-service-route
           uri: lb://reservation-service
           predicates:
             - Path=/api/reservations/**
+
+        # AJOUT DU NOUVEAU SERVICE DE PAIEMENT
+        - id: payment-service-route
+          uri: lb://payment-service
+          predicates:
+            - Path=/api/payments/**
 
         - id: user-service
           uri: lb://USER-SERVICE

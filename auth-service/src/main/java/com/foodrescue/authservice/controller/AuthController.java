@@ -1,11 +1,6 @@
 package com.foodrescue.authservice.controller;
 
-import com.foodrescue.authservice.dto.AuthResponse;
-import com.foodrescue.authservice.dto.LoginRequest;
-import com.foodrescue.authservice.dto.MfaSetupResponse;
-import com.foodrescue.authservice.dto.MfaValidateRequest;
-import com.foodrescue.authservice.dto.MfaVerifyRequest;
-import com.foodrescue.authservice.dto.RegisterRequest;
+import com.foodrescue.authservice.dto.*;
 import com.foodrescue.authservice.entity.User;
 import com.foodrescue.authservice.repository.UserRepository;
 import com.foodrescue.authservice.service.AuthService;
@@ -31,27 +26,23 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
-        // 1. On récupère la réponse normale (qui contient le token ou l'état MFA)
         AuthResponse authResponse = authService.login(request);
 
-        // Si l'utilisateur a besoin du MFA, on ne met pas encore le cookie final, on renvoie la réponse classique
         if (authResponse.isMfaRequired()) {
             return ResponseEntity.ok(authResponse);
         }
 
-        // 2. Si le login est direct et validé, on crée le Cookie HttpOnly sécurisé
         ResponseCookie jwtCookie = ResponseCookie.from("jwt", authResponse.getToken())
-                .httpOnly(true)    // Inaccessible par JavaScript (protection XSS)
-                .secure(false)     // Mettre à TRUE en production (HTTPS obligatoires), FALSE en local (HTTP)
-                .path("/")         // Valide pour toute l'application
-                .maxAge(24 * 60 * 60) // Durée de vie : 24 heures
-                .sameSite("Lax") // Protection CSRF
+                .httpOnly(true)
+                .secure(false)
+                .path("/")
+                .maxAge(24 * 60 * 60)
+                .sameSite("Lax")
                 .build();
 
-        // 3. On retourne la réponse en glissant le cookie dans les Headers
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, jwtCookie.toString())
-                .body(authResponse); // Ou simplement un message de succès si vous ne voulez plus exposer le token en JSON
+                .body(authResponse);
     }
 
     @GetMapping("/me")
@@ -82,10 +73,9 @@ public class AuthController {
     public ResponseEntity<?> mfaValidate(@RequestBody MfaValidateRequest request) {
         AuthResponse authResponse = authService.mfaValidate(request);
 
-        // De même pour la validation MFA finale : on sécurise le token dans un Cookie HttpOnly
         ResponseCookie jwtCookie = ResponseCookie.from("jwt", authResponse.getToken())
                 .httpOnly(true)
-                .secure(false) // true en production (HTTPS)
+                .secure(false)
                 .path("/")
                 .maxAge(24 * 60 * 60)
                 .sameSite("Strict")
@@ -94,5 +84,32 @@ public class AuthController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, jwtCookie.toString())
                 .body(authResponse);
+    }
+
+    @PutMapping("/update-password")
+    public ResponseEntity<?> updatePassword(
+            Authentication authentication,
+            @RequestBody UpdatePasswordRequest request
+    ) {
+        String email = authentication.getName();
+        authService.updatePassword(email, request);
+        return ResponseEntity.ok().body("Mot de passe mis à jour avec succès.");
+    }
+
+    // 💡 SYNCHRONISATION : Endpoint de mise à jour des infos dans la table users d'auth-service
+    @PutMapping("/update-profile")
+    public ResponseEntity<?> updateProfile(
+            Authentication authentication,
+            @RequestBody UpdateProfileRequest request
+    ) {
+        String email = authentication.getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Utilisateur introuvable."));
+
+        if (request.getFirstName() != null) user.setFirstName(request.getFirstName());
+        if (request.getLastName() != null) user.setLastName(request.getLastName());
+
+        userRepository.save(user);
+        return ResponseEntity.ok().body("Profil mis à jour dans la base Auth avec succès.");
     }
 }

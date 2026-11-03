@@ -9,8 +9,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
+import { useAuthStore } from '@/store/authStore';
 
-// Helper pour récupérer le token JWT stocké dans Zustand (food-rescue-auth)
+// (Optionnel gardé pour compatibilité, mais le cookie est géré par le navigateur)
 function getAuthToken(): string | null {
   const authStorage = localStorage.getItem('food-rescue-auth');
   if (!authStorage) return null;
@@ -31,7 +32,7 @@ interface ProductResponse {
   imageUrl: string;
   allergens: string;
   isPerishable: boolean;
-  merchantId: number;
+  merchantId: string; // 💡 UUID String
   createdAt?: string;
 }
 
@@ -42,12 +43,13 @@ interface ProductRequest {
   imageUrl: string;
   allergens: string;
   isPerishable: boolean;
-  merchantId: number;
+  merchantId: string; // 💡 UUID String
 }
 
 export default function MyProductsPage() {
   const queryClient = useQueryClient();
-  const merchantId = 1;
+  const { id: userAuthId } = useAuthStore();
+  const merchantId = userAuthId ? String(userAuthId) : '';
 
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -63,12 +65,13 @@ export default function MyProductsPage() {
     merchantId: merchantId,
   });
 
-  // Récupération des produits avec le token JWT
+  // Récupération des produits avec credentials: 'include' pour envoyer le cookie
   const { data: products = [], isLoading, error } = useQuery<ProductResponse[]>({
     queryKey: ['products', merchantId],
     queryFn: async () => {
       const token = getAuthToken();
       const response = await fetch(`http://localhost:8080/api/products/merchant/${merchantId}`, {
+        credentials: 'include', // 👈 Indispensable pour envoyer le cookie JWT
         headers: {
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         }
@@ -78,19 +81,21 @@ export default function MyProductsPage() {
       }
       return response.json();
     },
+    enabled: !!merchantId,
   });
 
-  // Mutation de création (POST) avec le token JWT
+  // Mutation de création (POST) avec credentials: 'include'
   const createMutation = useMutation({
     mutationFn: async (newProduct: ProductRequest) => {
       const token = getAuthToken();
       const response = await fetch('http://localhost:8080/api/products', {
         method: 'POST',
+        credentials: 'include', // 👈 Indispensable pour envoyer le cookie JWT
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
-        body: JSON.stringify(newProduct),
+        body: JSON.stringify({ ...newProduct, merchantId }),
       });
       if (!response.ok) {
         const errorText = await response.text();
@@ -109,20 +114,18 @@ export default function MyProductsPage() {
     },
   });
 
-  // Mutation de mise à jour (PUT) avec le token JWT et nettoyage de l'ID
+  // Mutation de mise à jour (PUT) avec credentials: 'include'
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: any; data: ProductRequest }) => {
       const token = getAuthToken();
-      const stringId = String(id);
-      const cleanId = stringId.includes(':') ? stringId.split(':')[0] : stringId;
-
-      const response = await fetch(`http://localhost:8080/api/products/${cleanId}`, {
+      const response = await fetch(`http://localhost:8080/api/products/${id}`, {
         method: 'PUT',
+        credentials: 'include', // 👈 Indispensable pour envoyer le cookie JWT
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, merchantId }),
       });
       if (!response.ok) {
         const errorText = await response.text();
@@ -142,15 +145,13 @@ export default function MyProductsPage() {
     },
   });
 
-  // Mutation de suppression (DELETE) avec le token JWT et nettoyage de l'ID
+  // Mutation de suppression (DELETE) avec credentials: 'include'
   const deleteMutation = useMutation({
     mutationFn: async (id: any) => {
       const token = getAuthToken();
-      const stringId = String(id ?? '');
-      const cleanId = stringId.includes(':') ? stringId.split(':')[0] : stringId;
-
-      const response = await fetch(`http://localhost:8080/api/products/${cleanId}`, {
+      const response = await fetch(`http://localhost:8080/api/products/${id}`, {
         method: 'DELETE',
+        credentials: 'include', // 👈 Indispensable pour envoyer le cookie JWT
         headers: {
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         }

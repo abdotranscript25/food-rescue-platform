@@ -12,7 +12,7 @@ export const offerApi = {
     return data;
   },
 
-  getOffersByMerchant: async (merchantId: number): Promise<OfferWithDetails[]> => {
+  getOffersByMerchant: async (merchantId: string): Promise<OfferWithDetails[]> => {
     const { data } = await axiosClient.get<OfferWithDetails[]>(`/api/offers/merchant/${merchantId}`);
     return data;
   },
@@ -22,7 +22,6 @@ export const offerApi = {
     return data;
   },
 
-  // Ajout de la fonction de mise à jour d'une offre existante
   updateOffer: async (id: number, offer: Partial<Offer>): Promise<OfferWithDetails> => {
     const { data } = await axiosClient.put<OfferWithDetails>(`/api/offers/${id}`, offer);
     return data;

@@ -24,12 +24,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -48,9 +44,6 @@ class ReservationControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    // ==========================================
-    // Mock des dépendances externes
-    // ==========================================
     @MockitoBean
     private OfferClient offerClient;
 
@@ -66,12 +59,9 @@ class ReservationControllerTest {
         Mockito.reset(offerClient, userServiceClient, rabbitTemplate);
     }
 
-    // ==========================================
-    // Helper : créer une réservation en base
-    // ==========================================
     private Reservation createTestReservation() {
         Reservation reservation = Reservation.builder()
-                .consumerId(1L)
+                .consumerId("consumer-uuid-123") // ⚠️ String (UUID)
                 .offerId(1L)
                 .quantity(2)
                 .totalPrice(new BigDecimal("10.00"))
@@ -81,13 +71,10 @@ class ReservationControllerTest {
         return reservationRepository.save(reservation);
     }
 
-    // ==========================================
-    // Helper : simuler une offre disponible
-    // ==========================================
     private OfferResponse mockOffer(int remainingQty) {
         return OfferResponse.builder()
                 .id(1L)
-                .merchantId(1L)
+                .merchantId("merchant-uuid-123") // ⚠️ String (UUID)
                 .productId(1L)
                 .originalPrice(new BigDecimal("15.00"))
                 .discountedPrice(new BigDecimal("5.00"))
@@ -128,15 +115,16 @@ class ReservationControllerTest {
     @WithMockUser(username = "alice@test.com", roles = "CONSUMER")
     @DisplayName("POST /api/reservations : création réussie")
     void createReservation_shouldWork() throws Exception {
-        // Mocker l'appel OfferClient
+        // Mocker les appels clients
         when(offerClient.getOfferById(1L)).thenReturn(mockOffer(10));
-        // Mocker l'appel UserServiceClient (optionnel)
-        when(userServiceClient.getUserById(anyLong()))
-                .thenReturn(new UserProfileResponse(1L, "Alice", "Dupont",
+
+        // Le contrôleur appelle getUserByEmail d'abord
+        when(userServiceClient.getUserByEmail(anyString()))
+                .thenReturn(new UserProfileResponse("consumer-uuid-123", "Alice", "Dupont",
                         "alice@test.com", "+33612345678", "Paris", "Paris"));
 
         Reservation request = Reservation.builder()
-                .consumerId(1L)
+                .consumerId("consumer-uuid-123") // ⚠️ String
                 .offerId(1L)
                 .quantity(2)
                 .build();
@@ -145,13 +133,14 @@ class ReservationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.consumerId").value(1))
+                .andExpect(jsonPath("$.consumerId").value("consumer-uuid-123"))
                 .andExpect(jsonPath("$.quantity").value(2))
                 .andExpect(jsonPath("$.status").value("CONFIRMED"))
                 .andExpect(jsonPath("$.totalPrice").value(10.00));
 
-        // Vérifier que decrementStock a été appelé
+        // Vérifier les appels
         verify(offerClient, times(1)).decrementStock(1L, 2);
+        verify(rabbitTemplate, times(1)).convertAndSend(anyString(), anyString(), any(Object.class));
     }
 
     // ==========================================
@@ -161,11 +150,10 @@ class ReservationControllerTest {
     @WithMockUser(username = "alice@test.com", roles = "CONSUMER")
     @DisplayName("POST /api/reservations : stock insuffisant → 409")
     void createReservation_shouldFailIfInsufficientStock() throws Exception {
-        // Mocker une offre avec 1 seul stock
         when(offerClient.getOfferById(1L)).thenReturn(mockOffer(1));
 
         Reservation request = Reservation.builder()
-                .consumerId(1L)
+                .consumerId("consumer-uuid-123")
                 .offerId(1L)
                 .quantity(5)
                 .build();
@@ -175,7 +163,6 @@ class ReservationControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isConflict());
 
-        // Vérifier que decrementStock N'A PAS été appelé
         verify(offerClient, never()).decrementStock(anyLong(), anyInt());
     }
 
@@ -187,7 +174,7 @@ class ReservationControllerTest {
     @DisplayName("POST /api/reservations : offerId manquant → 400")
     void createReservation_shouldFailIfMissingOfferId() throws Exception {
         Reservation request = Reservation.builder()
-                .consumerId(1L)
+                .consumerId("consumer-uuid-123")
                 .quantity(2)
                 .build();
 
@@ -204,7 +191,8 @@ class ReservationControllerTest {
     @DisplayName("POST /api/reservations sans auth : doit échouer")
     void createReservation_shouldFailWithoutAuth() throws Exception {
         Reservation request = Reservation.builder()
-                .consumerId(1L).offerId(1L).quantity(2).build();
+                .consumerId("consumer-uuid-123")
+                .offerId(1L).quantity(2).build();
 
         mockMvc.perform(post("/api/reservations")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -221,9 +209,8 @@ class ReservationControllerTest {
     void cancelReservation_shouldWork() throws Exception {
         Reservation reservation = createTestReservation();
 
-        // Mocker l'appel UserServiceClient
-        when(userServiceClient.getUserById(anyLong()))
-                .thenReturn(new UserProfileResponse(1L, "Alice", "Dupont",
+        when(userServiceClient.getUserById(anyString()))
+                .thenReturn(new UserProfileResponse("consumer-uuid-123", "Alice", "Dupont",
                         "alice@test.com", "+33612345678", "Paris", "Paris"));
 
         mockMvc.perform(put("/api/reservations/" + reservation.getId() + "/cancel"))
@@ -231,8 +218,8 @@ class ReservationControllerTest {
                 .andExpect(jsonPath("$.status").value("CANCELLED"))
                 .andExpect(jsonPath("$.cancelledAt").exists());
 
-        // Vérifier que incrementStock a été appelé
         verify(offerClient, times(1)).incrementStock(1L, 2);
+        verify(rabbitTemplate, times(1)).convertAndSend(anyString(), anyString(), any(Object.class));
     }
 
     // ==========================================
@@ -259,13 +246,15 @@ class ReservationControllerTest {
     void completeReservation_shouldWork() throws Exception {
         Reservation reservation = createTestReservation();
 
-        when(userServiceClient.getUserById(anyLong()))
-                .thenReturn(new UserProfileResponse(1L, "Alice", "Dupont",
+        when(userServiceClient.getUserById(anyString()))
+                .thenReturn(new UserProfileResponse("consumer-uuid-123", "Alice", "Dupont",
                         "alice@test.com", "+33612345678", "Paris", "Paris"));
 
         mockMvc.perform(put("/api/reservations/" + reservation.getId() + "/complete"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("COMPLETED"));
+
+        verify(rabbitTemplate, times(1)).convertAndSend(anyString(), anyString(), any(Object.class));
     }
 
     // ==========================================
@@ -306,7 +295,7 @@ class ReservationControllerTest {
     void getReservationsByUser_shouldReturnList() throws Exception {
         createTestReservation();
 
-        mockMvc.perform(get("/api/reservations/user/1"))
+        mockMvc.perform(get("/api/reservations/user/consumer-uuid-123")) // ⚠️ String (UUID)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1));
     }

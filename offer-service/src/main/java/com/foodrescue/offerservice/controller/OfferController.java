@@ -5,6 +5,7 @@ import com.foodrescue.offerservice.dto.ProductResponseDto;
 import com.foodrescue.offerservice.entity.Offer;
 import com.foodrescue.offerservice.entity.OfferStatus;
 import com.foodrescue.offerservice.repository.OfferRepository;
+import com.foodrescue.offerservice.security.JwtService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -24,12 +25,19 @@ public class OfferController {
     @Autowired
     private ProductClient productClient;
 
-    // Méthode utilitaire pour attacher le produit à l'offre
+    @Autowired
+    private JwtService jwtService;
+
+    // Méthode utilitaire pour attacher le produit à l'offre et propager son imageUrl
     private Offer enrichOfferWithProduct(Offer offer) {
         if (offer.getProductId() != null) {
             try {
                 ProductResponseDto product = productClient.getProductById(offer.getProductId());
                 offer.setProduct(product);
+
+                if (product != null && product.getImageUrl() != null) {
+                    offer.setImageUrl(product.getImageUrl());
+                }
             } catch (Exception e) {
                 // Gérer le cas échéant si le produit n'est pas trouvé
             }
@@ -64,10 +72,26 @@ public class OfferController {
     }
 
     @GetMapping("/merchant/{merchantId}")
-    public List<Offer> getOffersByMerchant(@PathVariable Long merchantId) {
+    public List<Offer> getOffersByMerchant(@PathVariable String merchantId) {
         return offerRepository.findByMerchantId(merchantId).stream()
                 .map(this::enrichOfferWithProduct)
                 .collect(Collectors.toList());
+    }
+
+    @GetMapping("/my-offers")
+    public List<Offer> getMyOffers(@RequestHeader("Authorization") String authHeader) {
+        try {
+            String token = authHeader.substring(7);
+            String merchantUuid = jwtService.extractUserId(token);
+            if (merchantUuid == null) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "UUID introuvable dans le token.");
+            }
+            return offerRepository.findByMerchantId(merchantUuid).stream()
+                    .map(this::enrichOfferWithProduct)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Impossible d'identifier le marchand connecté : " + e.getMessage());
+        }
     }
 
     @GetMapping("/{id}")
@@ -83,8 +107,8 @@ public class OfferController {
 
     @PostMapping
     public Offer createOffer(@RequestBody Offer offer) {
-        if (offer.getMerchantId() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le merchantId est obligatoire.");
+        if (offer.getMerchantId() == null || offer.getMerchantId().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le merchantId (UUID) est obligatoire.");
         }
         if (offer.getQuantity() == null || offer.getQuantity() <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La quantité doit être > 0.");
@@ -129,16 +153,14 @@ public class OfferController {
             offer.setDiscountedPrice(offerDetails.getDiscountedPrice());
         }
 
-        // Correction de la gestion de la quantité et du stock restant
         if (offerDetails.getQuantity() != null) {
             int oldQuantity = offer.getQuantity() != null ? offer.getQuantity() : 0;
-            int newQuantity = offerDetails.getQuantity(); // Utiliser offerDetails ici !
+            int newQuantity = offerDetails.getQuantity();
 
             int diff = newQuantity - oldQuantity;
             int currentRemaining = offer.getRemainingQuantity() != null ? offer.getRemainingQuantity() : oldQuantity;
             int newRemaining = currentRemaining + diff;
 
-            // S'assurer que le stock restant reste cohérent (entre 0 et la nouvelle quantité)
             if (newRemaining > newQuantity) {
                 newRemaining = newQuantity;
             }
@@ -157,8 +179,9 @@ public class OfferController {
         Offer updatedOffer = offerRepository.save(offer);
         return enrichOfferWithProduct(updatedOffer);
     }
+
     // ==========================================
-    // Publication : DRAFT → AVAILABLE
+    // Publication & Annulation
     // ==========================================
 
     @PutMapping("/{id}/publish")
@@ -167,18 +190,13 @@ public class OfferController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Offre introuvable"));
 
         if (offer.getStatus() != OfferStatus.DRAFT) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Seules les offres en DRAFT peuvent être publiées.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Seules les offres en DRAFT peuvent être publiées.");
         }
 
         offer.setStatus(OfferStatus.AVAILABLE);
         Offer savedOffer = offerRepository.save(offer);
         return enrichOfferWithProduct(savedOffer);
     }
-
-    // ==========================================
-    // Annulation : merchant
-    // ==========================================
 
     @PutMapping("/{id}/cancel")
     public Offer cancelOffer(@PathVariable Long id) {
@@ -190,17 +208,13 @@ public class OfferController {
         return enrichOfferWithProduct(savedOffer);
     }
 
-    // ==========================================
-    // Suppression : admin ou merchant
-    // ==========================================
-
     @DeleteMapping("/{id}")
     public void deleteOffer(@PathVariable Long id) {
         offerRepository.deleteById(id);
     }
 
     // ==========================================
-    // Endpoints internes (appelés par reservation-service via Feign)
+    // Endpoints internes (gestion des stocks)
     // ==========================================
 
     @PutMapping("/{id}/decrement")
@@ -209,8 +223,7 @@ public class OfferController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Offre introuvable"));
 
         if (offer.getRemainingQuantity() < quantity) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Stock insuffisant. Disponible : " + offer.getRemainingQuantity());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Stock insuffisant. Disponible : " + offer.getRemainingQuantity());
         }
 
         offer.setRemainingQuantity(offer.getRemainingQuantity() - quantity);

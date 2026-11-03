@@ -1,13 +1,7 @@
 package com.foodrescue.authservice.service;
 
 import com.foodrescue.authservice.client.UserServiceClient;
-import com.foodrescue.authservice.dto.AuthResponse;
-import com.foodrescue.authservice.dto.LoginRequest;
-import com.foodrescue.authservice.dto.MfaSetupResponse;
-import com.foodrescue.authservice.dto.MfaValidateRequest;
-import com.foodrescue.authservice.dto.MfaVerifyRequest;
-import com.foodrescue.authservice.dto.RegisterRequest;
-import com.foodrescue.authservice.dto.UserProfileRequest;
+import com.foodrescue.authservice.dto.*;
 import com.foodrescue.authservice.entity.Role;
 import com.foodrescue.authservice.entity.User;
 import com.foodrescue.authservice.entity.UserStatus;
@@ -31,9 +25,6 @@ public class AuthService {
     private final UserServiceClient userServiceClient;
     private final MfaService mfaService;
 
-    // ==========================================
-    // Inscription
-    // ==========================================
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new RuntimeException("Un utilisateur avec cet email existe déjà.");
@@ -48,7 +39,7 @@ public class AuthService {
                 .role(request.getRole() != null ? request.getRole() : Role.CONSUMER)
                 .status(UserStatus.ACTIVE)
                 .createdAt(LocalDateTime.now())
-                .mfaEnabled(false) // Sécurité explicite
+                .mfaEnabled(false)
                 .build();
 
         User savedUser = userRepository.save(user);
@@ -62,6 +53,7 @@ public class AuthService {
                     .phone(savedUser.getPhone())
                     .address(request.getAddress())
                     .city(request.getCity())
+                    .role(savedUser.getRole().name()) // 💡 Ajout indispensable pour transmettre le rôle au user-service
                     .build();
 
             userServiceClient.createProfile(profileRequest);
@@ -72,6 +64,7 @@ public class AuthService {
         String token = jwtService.generateToken(savedUser);
 
         return AuthResponse.builder()
+                .id(savedUser.getId())
                 .token(token)
                 .email(savedUser.getEmail())
                 .role(savedUser.getRole().name())
@@ -81,9 +74,6 @@ public class AuthService {
                 .build();
     }
 
-    // ==========================================
-    // Connexion
-    // ==========================================
     public AuthResponse login(LoginRequest request) {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
@@ -95,6 +85,7 @@ public class AuthService {
         if (user.isMfaEnabled()) {
             String partialToken = jwtService.generatePartialToken(user.getEmail());
             return AuthResponse.builder()
+                    .id(user.getId())
                     .partialToken(partialToken)
                     .email(user.getEmail())
                     .role(user.getRole().name())
@@ -107,6 +98,7 @@ public class AuthService {
         String token = jwtService.generateToken(user);
 
         return AuthResponse.builder()
+                .id(user.getId())
                 .token(token)
                 .email(user.getEmail())
                 .role(user.getRole().name())
@@ -116,16 +108,12 @@ public class AuthService {
                 .build();
     }
 
-    // ==========================================
-    // MFA Setup (Sécurisé contre le ré-enrôlement)
-    // ==========================================
     public MfaSetupResponse mfaSetup(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Utilisateur introuvable."));
 
-        // SÉCURITÉ : Empêcher l'écrasement d'un secret si la MFA est déjà active
         if (user.isMfaEnabled()) {
-            throw new RuntimeException("La MFA est déjà active sur ce compte. Désactivez-la d'abord pour la reconfigurer.");
+            throw new RuntimeException("La MFA est déjà active sur ce compte.");
         }
 
         String secret = mfaService.generateNewSecret();
@@ -142,15 +130,12 @@ public class AuthService {
                 .build();
     }
 
-    // ==========================================
-    // MFA Verify (Validation initiale du setup)
-    // ==========================================
     public void mfaVerify(String email, MfaVerifyRequest request) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Utilisateur introuvable."));
 
         if (user.getMfaSecret() == null || user.getMfaSecret().isBlank()) {
-            throw new RuntimeException("Le MFA n'a pas été initialisé. Appelez /mfa/setup d'abord.");
+            throw new RuntimeException("Le MFA n'a pas été initialisé.");
         }
 
         if (!mfaService.verifyCode(user.getMfaSecret(), request.getCode())) {
@@ -161,16 +146,13 @@ public class AuthService {
         userRepository.save(user);
     }
 
-    // ==========================================
-    // MFA Validate (Validation lors du Login + Anti-Rejeu)
-    // ==========================================
     public AuthResponse mfaValidate(MfaValidateRequest request) {
         if (!jwtService.isPartialToken(request.getPartialToken())) {
             throw new RuntimeException("Token partiel invalide.");
         }
 
         if (jwtService.isTokenExpired(request.getPartialToken())) {
-            throw new RuntimeException("Token partiel expiré. Reconnectez-vous.");
+            throw new RuntimeException("Token partiel expiré.");
         }
 
         String email = jwtService.extractUsername(request.getPartialToken());
@@ -179,18 +161,16 @@ public class AuthService {
                 .orElseThrow(() -> new RuntimeException("Utilisateur introuvable."));
 
         if (!user.isMfaEnabled() || user.getMfaSecret() == null) {
-            throw new RuntimeException("Le MFA n'est pas activé pour cet utilisateur.");
+            throw new RuntimeException("Le MFA n'est pas activé.");
         }
 
-        // Vérification du code TOTP
         if (!mfaService.verifyCode(user.getMfaSecret(), request.getCode())) {
             throw new RuntimeException("Code MFA invalide.");
         }
 
-        // SÉCURITÉ ANTI-REJEU : Empêcher la réutilisation immédiate du même code exact
-        long currentWindow = System.currentTimeMillis() / 30000; // Fenêtre de 30 secondes
+        long currentWindow = System.currentTimeMillis() / 30000;
         if (user.getLastUsedOtpWindow() != null && user.getLastUsedOtpWindow() == currentWindow) {
-            throw new RuntimeException("Ce code MFA a déjà été utilisé. Veuillez patienter pour le suivant.");
+            throw new RuntimeException("Ce code MFA a déjà été utilisé.");
         }
         user.setLastUsedOtpWindow(currentWindow);
         userRepository.save(user);
@@ -198,6 +178,7 @@ public class AuthService {
         String token = jwtService.generateToken(user);
 
         return AuthResponse.builder()
+                .id(user.getId())
                 .token(token)
                 .email(user.getEmail())
                 .role(user.getRole().name())
@@ -205,5 +186,17 @@ public class AuthService {
                 .lastName(user.getLastName())
                 .mfaRequired(false)
                 .build();
+    }
+
+    public void updatePassword(String email, UpdatePasswordRequest request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Utilisateur introuvable."));
+
+        if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
+            throw new RuntimeException("L'ancien mot de passe est incorrect.");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
     }
 }

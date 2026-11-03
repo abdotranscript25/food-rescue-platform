@@ -4,11 +4,13 @@ import com.foodrescue.reservationservice.client.OfferClient;
 import com.foodrescue.reservationservice.client.UserServiceClient;
 import com.foodrescue.reservationservice.config.RabbitMQConfig;
 import com.foodrescue.reservationservice.dto.OfferResponse;
+import com.foodrescue.reservationservice.dto.ReservationEnrichedResponse;
 import com.foodrescue.reservationservice.dto.ReservationEvent;
 import com.foodrescue.reservationservice.dto.UserProfileResponse;
 import com.foodrescue.reservationservice.entity.Reservation;
 import com.foodrescue.reservationservice.entity.ReservationStatus;
 import com.foodrescue.reservationservice.repository.ReservationRepository;
+import com.foodrescue.reservationservice.security.JwtService;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,7 +21,12 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.security.Principal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/reservations")
@@ -35,6 +42,9 @@ public class ReservationController {
     private UserServiceClient userServiceClient;
 
     @Autowired
+    private JwtService jwtService;
+
+    @Autowired
     private RabbitTemplate rabbitTemplate;
 
     @Value("${MAIL_USERNAME}")
@@ -46,8 +56,110 @@ public class ReservationController {
     }
 
     @GetMapping("/user/{consumerId}")
-    public List<Reservation> getReservationsByUser(@PathVariable Long consumerId) {
-        return reservationRepository.findByConsumerId(consumerId);
+    public List<ReservationEnrichedResponse> getReservationsByUser(@PathVariable String consumerId) {
+        try {
+            List<Reservation> reservations = reservationRepository.findByConsumerId(consumerId);
+            if (reservations == null || reservations.isEmpty()) {
+                return List.of();
+            }
+
+            Set<Long> offerIds = reservations.stream()
+                    .map(Reservation::getOfferId)
+                    .filter(id -> id != null)
+                    .collect(Collectors.toSet());
+
+            Map<Long, OfferResponse> offerMap = new HashMap<>();
+            for (Long offerId : offerIds) {
+                try {
+                    OfferResponse offer = offerClient.getOfferById(offerId);
+                    if (offer != null) {
+                        offerMap.put(offerId, offer);
+                    }
+                } catch (Exception e) {
+                    System.err.println("Impossible de récupérer l'offre ID " + offerId + " : " + e.getMessage());
+                }
+            }
+
+            List<ReservationEnrichedResponse> enrichedList = new ArrayList<>();
+            for (Reservation r : reservations) {
+                ReservationEnrichedResponse dto = new ReservationEnrichedResponse();
+                dto.setId(r.getId());
+                dto.setQuantity(r.getQuantity());
+                dto.setTotalPrice(r.getTotalPrice());
+                dto.setStatus(r.getStatus());
+                dto.setReservationDate(r.getReservationDate());
+                dto.setCancelledAt(r.getCancelledAt());
+
+                if (r.getOfferId() != null) {
+                    dto.setOffer(offerMap.get(r.getOfferId()));
+                }
+
+                if (r.getConsumerId() != null) {
+                    try {
+                        UserProfileResponse userProfile = userServiceClient.getUserById(r.getConsumerId());
+                        dto.setConsumer(userProfile);
+                    } catch (Exception e) {
+                        dto.setConsumer(null);
+                    }
+                }
+
+                enrichedList.add(dto);
+            }
+
+            return enrichedList;
+
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Erreur lors de la récupération des réservations de l'utilisateur : " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/merchant/{merchantId}")
+    public List<ReservationEnrichedResponse> getReservationsByMerchant(@PathVariable String merchantId) {
+        try {
+            List<OfferResponse> merchantOffers = offerClient.getOffersByMerchant(merchantId);
+            if (merchantOffers == null || merchantOffers.isEmpty()) {
+                return List.of();
+            }
+
+            Map<Long, OfferResponse> offerMap = merchantOffers.stream()
+                    .collect(Collectors.toMap(OfferResponse::getId, o -> o));
+
+            List<Long> offerIds = new ArrayList<>(offerMap.keySet());
+
+            List<Reservation> reservations = reservationRepository.findAll().stream()
+                    .filter(r -> r.getOfferId() != null && offerIds.contains(r.getOfferId()))
+                    .collect(Collectors.toList());
+
+            List<ReservationEnrichedResponse> enrichedList = new ArrayList<>();
+            for (Reservation r : reservations) {
+                ReservationEnrichedResponse dto = new ReservationEnrichedResponse();
+                dto.setId(r.getId());
+                dto.setQuantity(r.getQuantity());
+                dto.setTotalPrice(r.getTotalPrice());
+                dto.setStatus(r.getStatus());
+                dto.setReservationDate(r.getReservationDate());
+                dto.setCancelledAt(r.getCancelledAt());
+                dto.setOffer(offerMap.get(r.getOfferId()));
+
+                if (r.getConsumerId() != null) {
+                    try {
+                        UserProfileResponse userProfile = userServiceClient.getUserById(r.getConsumerId());
+                        dto.setConsumer(userProfile);
+                    } catch (Exception e) {
+                        dto.setConsumer(null);
+                    }
+                }
+
+                enrichedList.add(dto);
+            }
+
+            return enrichedList;
+
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Erreur lors de la récupération des réservations du marchand : " + e.getMessage());
+        }
     }
 
     @GetMapping("/status/{status}")
@@ -61,7 +173,11 @@ public class ReservationController {
     }
 
     @PostMapping
-    public Reservation createReservation(@RequestBody Reservation reservationRequest, Principal principal) {
+    public Reservation createReservation(
+            @RequestBody Reservation reservationRequest,
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            Principal principal
+    ) {
         if (reservationRequest.getOfferId() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "L'identifiant de l'offre est obligatoire.");
         }
@@ -69,12 +185,20 @@ public class ReservationController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La quantité doit être supérieure à zéro.");
         }
 
-        // 1. Récupération sécurisée de l'email depuis le Token JWT
         String userEmail = (principal != null) ? principal.getName() : mailUsername;
-
-        // 2. Récupération dynamique et propre du vrai consumerId via le user-service par e-mail
-        Long consumerId = reservationRequest.getConsumerId();
+        String consumerId = reservationRequest.getConsumerId();
         String recipientEmail = userEmail;
+
+        // Extraction propre de l'UUID du consommateur depuis le JWT si présent
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            try {
+                String token = authHeader.substring(7);
+                String tokenUuid = jwtService.extractUserId(token);
+                if (tokenUuid != null) {
+                    consumerId = tokenUuid;
+                }
+            } catch (Exception ignored) {}
+        }
 
         try {
             UserProfileResponse userProfile = userServiceClient.getUserByEmail(userEmail);
@@ -87,18 +211,23 @@ public class ReservationController {
                 }
             }
         } catch (Exception e) {
-            // Si le profil n'est pas trouvé par email, on bascule sur un fallback ou une erreur propre
             if (consumerId == null) {
-                consumerId = 1L; // Fallback de secours si vraiment introuvable
+                consumerId = "default-uuid";
             }
         }
 
-        // 3. Vérification de l'offre et du stock
         OfferResponse offer;
         try {
             offer = offerClient.getOfferById(reservationRequest.getOfferId());
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Offre introuvable : " + e.getMessage());
+        }
+
+        if (offer.getStatus() != null && !"AVAILABLE".equalsIgnoreCase(offer.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Impossible de réserver : cette offre n'est plus disponible.");
+        }
+        if (offer.getExpiresAt() != null && offer.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Impossible de réserver : cette offre a expiré.");
         }
 
         if (offer.getRemainingQuantity() == null || offer.getRemainingQuantity() < reservationRequest.getQuantity()) {
@@ -111,7 +240,6 @@ public class ReservationController {
         BigDecimal totalPrice = offer.getDiscountedPrice()
                 .multiply(BigDecimal.valueOf(reservationRequest.getQuantity()));
 
-        // 4. Enregistrement de la réservation avec le bon ID
         Reservation reservation = new Reservation();
         reservation.setOfferId(reservationRequest.getOfferId());
         reservation.setQuantity(reservationRequest.getQuantity());
@@ -122,7 +250,6 @@ public class ReservationController {
 
         Reservation savedReservation = reservationRepository.save(reservation);
 
-        // 5. Publication de l'événement RabbitMQ avec le bon e-mail de notification
         publishEvent(savedReservation, "CREATED",
                 "Nouvelle réservation confirmée pour " + savedReservation.getQuantity() + " portion(s).",
                 recipientEmail);

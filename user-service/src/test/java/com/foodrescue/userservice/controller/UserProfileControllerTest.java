@@ -37,46 +37,40 @@ class UserProfileControllerTest {
         userProfileRepository.deleteAll();
     }
 
-    // ==========================================
-    // Test 1 : Création de profil (POST) - Public
-    // ==========================================
     @Test
     @DisplayName("POST /api/users/profiles : doit créer un profil")
     void createProfile_shouldReturnSavedProfile() throws Exception {
         UserProfile profile = UserProfile.builder()
-                .id(1L).firstName("Alice").lastName("Dupont")
+                .id("1") // ⬅️ String
+                .firstName("Alice").lastName("Dupont")
                 .email("alice@test.com").phone("+33612345678")
-                .address("Paris").city("Paris").build();
+                .address("Paris").city("Paris")
+                .role("CONSUMER") // Ajout du rôle
+                .build();
 
         mockMvc.perform(post("/api/users/profiles")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(profile)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1L))
+                .andExpect(jsonPath("$.id").value("1")) // ⬅️ String
                 .andExpect(jsonPath("$.firstName").value("Alice"))
                 .andExpect(jsonPath("$.email").value("alice@test.com"));
     }
 
-    // ==========================================
-    // Test 2 : Récupération par ID (GET) - Protégé
-    // ==========================================
     @Test
     @WithMockUser(username = "alice@test.com", roles = "CONSUMER")
     @DisplayName("GET /api/users/profiles/{id} : doit retourner le profil")
     void getProfileById_shouldReturnProfile() throws Exception {
         UserProfile profile = UserProfile.builder()
-                .id(2L).firstName("Bob").lastName("Martin")
-                .email("bob@test.com").build();
+                .id("2").firstName("Bob").lastName("Martin")
+                .email("bob@test.com").role("MERCHANT").build();
         userProfileRepository.save(profile);
 
-        mockMvc.perform(get("/api/users/profiles/2"))
+        mockMvc.perform(get("/api/users/profiles/2")) // Spring va convertir "2" en String
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("bob@test.com"));
     }
 
-    // ==========================================
-    // Test 3 : Profil inexistant (404) - Protégé
-    // ==========================================
     @Test
     @WithMockUser(username = "alice@test.com", roles = "CONSUMER")
     @DisplayName("GET /api/users/profiles/{id} : doit retourner 404 si absent")
@@ -85,16 +79,13 @@ class UserProfileControllerTest {
                 .andExpect(status().isNotFound());
     }
 
-    // ==========================================
-    // Test 4 : Récupération par email (GET) - Protégé
-    // ==========================================
     @Test
     @WithMockUser(username = "alice@test.com", roles = "CONSUMER")
     @DisplayName("GET /api/users/profiles/email/{email} : doit retourner le profil")
     void getProfileByEmail_shouldReturnProfile() throws Exception {
         UserProfile profile = UserProfile.builder()
-                .id(3L).firstName("Charlie").lastName("Durand")
-                .email("charlie@test.com").build();
+                .id("3").firstName("Charlie").lastName("Durand")
+                .email("charlie@test.com").role("CONSUMER").build();
         userProfileRepository.save(profile);
 
         mockMvc.perform(get("/api/users/profiles/email/charlie@test.com"))
@@ -102,30 +93,24 @@ class UserProfileControllerTest {
                 .andExpect(jsonPath("$.firstName").value("Charlie"));
     }
 
-    // ==========================================
-    // Test 5 : Lister tous les profils - Protégé
-    // ==========================================
     @Test
     @WithMockUser(username = "alice@test.com", roles = "CONSUMER")
     @DisplayName("GET /api/users/profiles : doit retourner tous les profils")
     void getAllProfiles_shouldReturnList() throws Exception {
         userProfileRepository.save(UserProfile.builder()
-                .id(4L).firstName("A").lastName("A").email("a@test.com").build());
+                .id("4").firstName("A").lastName("A").email("a@test.com").role("CONSUMER").build());
         userProfileRepository.save(UserProfile.builder()
-                .id(5L).firstName("B").lastName("B").email("b@test.com").build());
+                .id("5").firstName("B").lastName("B").email("b@test.com").role("CONSUMER").build());
 
         mockMvc.perform(get("/api/users/profiles"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2));
     }
 
-    // ==========================================
-    // Test 6 : GET sans authentification → 401/403
-    // ==========================================
     @Test
     @DisplayName("GET /api/users/profiles sans auth : doit échouer")
     void getProfiles_withoutAuth_shouldFail() throws Exception {
         mockMvc.perform(get("/api/users/profiles"))
-                .andExpect(status().is4xxClientError()); // 401 ou 403
+                .andExpect(status().is4xxClientError());
     }
 }

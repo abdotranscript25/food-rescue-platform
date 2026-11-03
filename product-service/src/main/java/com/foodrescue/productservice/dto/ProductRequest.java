@@ -14,5 +14,5 @@ public class ProductRequest {
     private String imageUrl;
     private String allergens;
     private Boolean isPerishable = true;
-    private Long merchantId;
+    private String merchantId; // 💡 Changé en String (UUID)
 }

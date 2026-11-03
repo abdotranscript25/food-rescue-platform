@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 public interface UserServiceClient {
 
     @GetMapping("/api/users/profiles/{id}")
-    UserProfileResponse getUserById(@PathVariable("id") Long id);
+    UserProfileResponse getUserById(@PathVariable("id") String id); // 💡 String (UUID)
 
     @GetMapping("/api/users/profiles/email/{email}")
     UserProfileResponse getUserByEmail(@PathVariable("email") String email);

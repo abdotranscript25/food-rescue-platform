@@ -71,7 +71,11 @@ export default function RegisterPage() {
       const response = await authApi.register({ ...payload, role: data.role as Role });
 
       if (response.token) {
+        // 💡 L'identifiant utilisateur est géré comme un UUID (String)
+        const userId = response.id || (response as any).userId || (response as any).user?.id;
+
         setAuth({
+          id: userId ? String(userId) : null,
           token: response.token,
           email: response.email,
           role: response.role,
@@ -135,7 +139,6 @@ export default function RegisterPage() {
 
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              {/* Choix du rôle */}
               <div className="space-y-2">
                 <Label>Je suis :</Label>
                 <div className="grid grid-cols-2 gap-3">
@@ -166,7 +169,6 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              {/* Prénom + Nom */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">Prénom</Label>
@@ -186,7 +188,6 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              {/* Email */}
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">
@@ -196,7 +197,6 @@ export default function RegisterPage() {
                 {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
               </div>
 
-              {/* Téléphone */}
               <div className="space-y-2">
                 <Label htmlFor="phone">Téléphone (optionnel)</Label>
                 <div className="relative">
@@ -205,7 +205,6 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              {/* Mot de passe */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label htmlFor="password">Mot de passe</Label>
@@ -225,7 +224,6 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              {/* Adresse + Ville */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label htmlFor="address">Adresse (optionnel)</Label>

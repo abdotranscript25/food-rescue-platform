@@ -6,5 +6,6 @@ export interface Product {
   imageUrl: string | null;
   allergens: string | null;
   isPerishable: boolean;
+  merchantId?: string; // 👈 Modifié en string (UUID)
   createdAt: string;
 }

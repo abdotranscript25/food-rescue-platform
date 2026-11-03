@@ -34,9 +34,9 @@ public class Product {
     @Builder.Default
     private Boolean isPerishable = true;
 
-    // Ajouté pour lier le produit au marchand propriétaire (Sécurité / Multi-tenant)
-    @Column(name = "merchant_id")
-    private Long merchantId;
+    // 💡 Changé de Long à String (UUID)
+    @Column(name = "merchant_id", length = 36)
+    private String merchantId;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

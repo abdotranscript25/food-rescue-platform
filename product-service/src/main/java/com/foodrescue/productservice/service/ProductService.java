@@ -5,7 +5,6 @@ import com.foodrescue.productservice.dto.ProductResponse;
 import com.foodrescue.productservice.entity.Product;
 import com.foodrescue.productservice.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -37,7 +36,7 @@ public class ProductService {
                 .toList();
     }
 
-    public List<ProductResponse> getProductsByMerchant(Long merchantId) {
+    public List<ProductResponse> getProductsByMerchant(String merchantId) { // 💡 String (UUID)
         return productRepository.findByMerchantId(merchantId).stream()
                 .map(this::mapToResponse)
                 .toList();

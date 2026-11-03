@@ -8,12 +8,16 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.util.List;
+
 @FeignClient(name = "offer-service", configuration = FeignConfig.class)
 public interface OfferClient {
 
-    // AJOUT : récupérer les infos de l'offre
     @GetMapping("/api/offers/{id}")
     OfferResponse getOfferById(@PathVariable("id") Long id);
+
+    @GetMapping("/api/offers/merchant/{merchantId}")
+    List<OfferResponse> getOffersByMerchant(@PathVariable("merchantId") String merchantId); // 💡 String (UUID)
 
     @PutMapping("/api/offers/{id}/decrement")
     void decrementStock(@PathVariable("id") Long id, @RequestParam("quantity") Integer quantity);

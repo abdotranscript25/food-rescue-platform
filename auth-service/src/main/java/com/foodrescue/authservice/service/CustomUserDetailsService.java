@@ -19,9 +19,6 @@ public class CustomUserDetailsService implements UserDetailsService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Utilisateur introuvable avec l'email : " + email));
 
-        // AJOUT : Refuser les comptes non-actifs
-        // (Spring Security va automatiquement bloquer si isEnabled() == false)
-
         return user;
     }
 }

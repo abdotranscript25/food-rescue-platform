@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { productApi, type CreateProductRequest } from '@/api/productApi';
 import { useQueryClient } from '@tanstack/react-query';
+import { useAuthStore } from '@/store/authStore';
 
 const productSchema = z.object({
   name: z.string().min(2, 'Nom requis (min. 2 caractères)'),
@@ -36,6 +37,11 @@ interface ProductFormDialogProps {
 
 export default function ProductFormDialog({ open, onOpenChange }: ProductFormDialogProps) {
   const queryClient = useQueryClient();
+  const { id: userAuthId } = useAuthStore();
+
+  // 💡 Récupération de l'UUID du marchand connecté en tant que String
+  const merchantId = userAuthId ? String(userAuthId) : '';
+
   const [isLoading, setIsLoading] = useState(false);
   const [previewError, setPreviewError] = useState(false);
 
@@ -73,6 +79,11 @@ export default function ProductFormDialog({ open, onOpenChange }: ProductFormDia
   }, [open, reset]);
 
   const onSubmit = async (data: ProductForm) => {
+    if (!merchantId) {
+      toast.error("Identifiant du marchand introuvable dans la session.");
+      return;
+    }
+
     setIsLoading(true);
     try {
       const payload: CreateProductRequest = {
@@ -82,12 +93,13 @@ export default function ProductFormDialog({ open, onOpenChange }: ProductFormDia
         imageUrl: data.imageUrl || undefined,
         allergens: data.allergens || undefined,
         isPerishable: data.isPerishable,
-      };
+        merchantId: merchantId, // UUID String transmis au backend
+      } as CreateProductRequest;
 
       await productApi.createProduct(payload);
 
       toast.success(`Produit "${data.name}" créé avec succès ! 🎉`);
-      await queryClient.invalidateQueries({ queryKey: ['products'] });
+      await queryClient.invalidateQueries({ queryKey: ['products', merchantId] });
       onOpenChange(false);
     } catch (error: any) {
       const message =

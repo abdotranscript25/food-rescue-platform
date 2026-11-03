@@ -17,13 +17,21 @@
         <sonar.organization>abdotranscript25</sonar.organization>
         <sonar.projectKey>abdotranscript25_food-rescue-platform</sonar.projectKey>
 
-        <!-- ⬇️ AJOUT : Indique à SonarQube où lire le rapport agrégé global -->
+        <!-- ⬇️ 1. Trouver TOUS les fichiers jacoco.xml générés par les microservices -->
         <sonar.coverage.jacoco.xmlReportPaths>
-            ${maven.multiModuleProjectDirectory}/target/site/jacoco-aggregate/jacoco.xml
+            ${project.basedir}/target/site/jacoco/jacoco.xml,
+            ${project.basedir}/*/target/site/jacoco/jacoco.xml
         </sonar.coverage.jacoco.xmlReportPaths>
-        <sonar.coverage.jacoco.aggregateXmlReportPaths>
-            ${maven.multiModuleProjectDirectory}/target/site/jacoco-aggregate/jacoco.xml
-        </sonar.coverage.jacoco.aggregateXmlReportPaths>
+
+        <!-- ⬇️ 2. EXCLURE les fichiers non-testables du calcul de SonarQube -->
+        <sonar.coverage.exclusions>
+            **/dto/**,
+            **/entity/**,
+            **/config/**,
+            **/*Application.java,
+            **/repository/**,
+            **/security/**
+        </sonar.coverage.exclusions>
     </properties>
 
     <modules>
@@ -37,57 +45,4 @@
         <module>reservation-service</module>
         <module>user-service</module>
     </modules>
-
-    <!-- ========================================== -->
-    <!-- CONFIGURATION JACOCO POUR LA COUVERTURE   -->
-    <!-- ========================================== -->
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.jacoco</groupId>
-                <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.12</version>
-                <configuration>
-                    <excludes>
-                        <!-- Exclure les DTOs (pas de logique métier) -->
-                        <exclude>**/dto/**</exclude>
-                        <!-- Exclure les entités JPA (générées par Hibernate) -->
-                        <exclude>**/entity/**</exclude>
-                        <!-- Exclure les classes de configuration Spring -->
-                        <exclude>**/config/**</exclude>
-                        <!-- Exclure la classe main de chaque microservice -->
-                        <exclude>**/*Application.class</exclude>
-                        <!-- Exclure les repositories (interfaces Spring Data) -->
-                        <exclude>**/repository/**</exclude>
-                        <!-- Exclure les classes de sécurité (filtres JWT, etc.) -->
-                        <exclude>**/security/**</exclude>
-                    </excludes>
-                </configuration>
-                <!-- ⬇️ AJOUT : Liaison au cycle de vie Maven -->
-                <executions>
-                    <execution>
-                        <id>prepare-agent</id>
-                        <goals>
-                            <goal>prepare-agent</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>report</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>report</goal>
-                        </goals>
-                    </execution>
-                    <!-- ⬇️ AJOUT : Génère un rapport global à la racine -->
-                    <execution>
-                        <id>report-aggregate</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>report-aggregate</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-    </build>
 </project>

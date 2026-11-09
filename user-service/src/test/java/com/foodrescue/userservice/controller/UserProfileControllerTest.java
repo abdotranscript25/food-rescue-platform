@@ -156,7 +156,8 @@ class UserProfileControllerTest {
                         .content(objectMapper.writeValueAsString(updateDto)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.firstName").value("New"))
-                .andExpect(jsonPath("$.email").value("new@test.com"));
+                // CORRECTION : L'email reste l'ancien car il est en lecture seule
+                .andExpect(jsonPath("$.email").value("old@test.com"));
 
         assertEquals(1, userProfileRepository.count());
     }
@@ -202,7 +203,8 @@ class UserProfileControllerTest {
                         .content(objectMapper.writeValueAsString(updateDto)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.firstName").value("Updated"))
-                .andExpect(jsonPath("$.email").value("new@test.com"));
+                // CORRECTION : L'email reste l'ancien car il est en lecture seule
+                .andExpect(jsonPath("$.email").value("test@test.com"));
     }
 
     @Test

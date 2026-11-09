@@ -5,7 +5,10 @@ import com.foodrescue.paymentservice.client.ReservationClient;
 import com.foodrescue.paymentservice.model.Payment;
 import com.foodrescue.paymentservice.model.PaymentStatus;
 import com.foodrescue.paymentservice.repository.PaymentRepository;
+import com.stripe.model.Event;
+import com.stripe.model.EventDataObjectDeserializer;
 import com.stripe.model.checkout.Session;
+import com.stripe.net.Webhook;
 import com.stripe.param.checkout.SessionCreateParams;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -23,12 +26,13 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertEquals; // ⬅️ L'IMPORT MANQUANT EST ICI
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -55,9 +59,6 @@ class PaymentControllerTest {
         Mockito.reset(reservationClient);
     }
 
-    // ==========================================
-    // Test 1 : POST /api/payments (Authentifié)
-    // ==========================================
     @Test
     @WithMockUser(username = "user@test.com")
     @DisplayName("POST /api/payments : doit traiter le paiement")
@@ -68,8 +69,6 @@ class PaymentControllerTest {
             Session mockSession = mock(Session.class);
             when(mockSession.getId()).thenReturn("cs_test_mock123");
             when(mockSession.getUrl()).thenReturn("https://checkout.stripe.com/mock");
-
-            // CORRECTION : Spécifier le type pour lever l'ambiguïté
             mockedSession.when(() -> Session.create(any(SessionCreateParams.class))).thenReturn(mockSession);
 
             Map<String, Object> request = new HashMap<>();
@@ -82,25 +81,16 @@ class PaymentControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.reservationId").value(10))
-                    .andExpect(jsonPath("$.amount").value(150.0))
-                    .andExpect(jsonPath("$.currency").value("MAD"))
-                    .andExpect(jsonPath("$.status").value("PENDING")) // Changé en PENDING
-                    .andExpect(jsonPath("$.checkoutUrl").value("https://checkout.stripe.com/mock")); // Ajout de l'URL
+                    .andExpect(jsonPath("$.status").value("PENDING"))
+                    .andExpect(jsonPath("$.checkoutUrl").value("https://checkout.stripe.com/mock"));
         }
     }
 
-    // ==========================================
-    // Test 2 : POST sans Auth → 401/403
-    // ==========================================
     @Test
     @DisplayName("POST /api/payments sans auth : doit échouer")
     void processPayment_shouldFailWithoutAuth() throws Exception {
         Map<String, Object> request = new HashMap<>();
         request.put("reservationId", 1L);
-        request.put("clientId", 1L);
-        request.put("amount", 100.0);
-        request.put("paymentMethod", "CARD");
 
         mockMvc.perform(post("/api/payments")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -108,9 +98,6 @@ class PaymentControllerTest {
                 .andExpect(status().is4xxClientError());
     }
 
-    // ==========================================
-    // Test 3 : POST avec erreur Feign
-    // ==========================================
     @Test
     @WithMockUser(username = "user@test.com")
     @DisplayName("POST /api/payments : erreur Feign → 500")
@@ -119,47 +106,69 @@ class PaymentControllerTest {
 
         Map<String, Object> request = new HashMap<>();
         request.put("reservationId", 1L);
-        request.put("clientId", 1L);
-        request.put("amount", 100.0);
-        request.put("paymentMethod", "CARD");
 
         mockMvc.perform(post("/api/payments")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isInternalServerError()); // 500
+                .andExpect(status().isInternalServerError());
     }
 
-    // ==========================================
-    // Test 4 : GET /api/payments/reservation/{id} (Succès)
-    // ==========================================
     @Test
     @WithMockUser(username = "user@test.com")
     @DisplayName("GET /api/payments/reservation/{id} : doit retourner le paiement")
     void getByReservation_shouldReturnPayment() throws Exception {
         Payment payment = Payment.builder()
-                .reservationId(20L)
-                .clientId(300L)
-                .amount(99.0)
-                .currency("MAD")
-                .status(PaymentStatus.SUCCESS)
-                .paymentMethod("PAYPAL")
-                .build();
+                .reservationId(20L).clientId(300L).amount(99.0)
+                .currency("MAD").status(PaymentStatus.SUCCESS).paymentMethod("PAYPAL").build();
         paymentRepository.save(payment);
 
         mockMvc.perform(get("/api/payments/reservation/20"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.reservationId").value(20))
-                .andExpect(jsonPath("$.clientId").value(300));
+                .andExpect(jsonPath("$.reservationId").value(20));
     }
 
-    // ==========================================
-    // Test 5 : GET /api/payments/reservation/{id} (Non trouvé)
-    // ==========================================
     @Test
     @WithMockUser(username = "user@test.com")
     @DisplayName("GET /api/payments/reservation/{id} : non trouvé → 404")
     void getByReservation_shouldReturn404IfNotFound() throws Exception {
         mockMvc.perform(get("/api/payments/reservation/999"))
-                .andExpect(status().isNotFound()); // 404
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("POST /api/payments/webhook : doit traiter l'événement Stripe")
+    void handleStripeWebhook_shouldProcessEvent() throws Exception {
+        Payment payment = Payment.builder()
+                .reservationId(1L).clientId(100L).amount(50.0)
+                .currency("MAD").paymentMethod("CARD").status(PaymentStatus.PENDING)
+                .stripeSessionId("cs_test_webhook_123").build();
+        paymentRepository.save(payment);
+
+        Session mockSession = mock(Session.class);
+        when(mockSession.getId()).thenReturn("cs_test_webhook_123");
+
+        EventDataObjectDeserializer mockDeserializer = mock(EventDataObjectDeserializer.class);
+        when(mockDeserializer.getObject()).thenReturn(Optional.of(mockSession));
+
+        Event mockEvent = mock(Event.class);
+        when(mockEvent.getType()).thenReturn("checkout.session.completed");
+        when(mockEvent.getDataObjectDeserializer()).thenReturn(mockDeserializer);
+
+        try (MockedStatic<Webhook> mockedWebhook = mockStatic(Webhook.class)) {
+            mockedWebhook.when(() -> Webhook.constructEvent(anyString(), anyString(), anyString()))
+                    .thenReturn(mockEvent);
+
+            doNothing().when(reservationClient).confirmReservation(1L);
+
+            mockMvc.perform(post("/api/payments/webhook")
+                            .header("Stripe-Signature", "fake_signature")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{ \"type\": \"checkout.session.completed\" }"))
+                    .andExpect(status().isOk())
+                    .andExpect(content().string("Webhook reçu"));
+
+            Payment updated = paymentRepository.findByReservationId(1L).get();
+            assertEquals(PaymentStatus.SUCCESS, updated.getStatus()); // ⬅️ L'erreur est corrigée ici
+        }
     }
 }

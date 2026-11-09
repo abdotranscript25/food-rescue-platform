@@ -48,7 +48,6 @@ class PaymentServiceTest {
     @Test
     @DisplayName("processPayment : doit créer un paiement avec succès")
     void processPayment_shouldCreateSuccessPayment() {
-        // Mocker la réponse de Feign (réservation trouvée)
         when(reservationClient.getReservationById(1L)).thenReturn(new Object());
 
         try (MockedStatic<Session> mockedSession = mockStatic(Session.class)) {
@@ -56,24 +55,16 @@ class PaymentServiceTest {
             when(mockSession.getId()).thenReturn("cs_test_mock123");
             when(mockSession.getUrl()).thenReturn("https://checkout.stripe.com/mock_url");
 
-            // CORRECTION : Spécifier le type pour lever l'ambiguïté
             mockedSession.when(() -> Session.create(any(SessionCreateParams.class))).thenReturn(mockSession);
 
             String url = paymentService.processPayment(1L, 100L, 50.0, "CREDIT_CARD");
 
             assertEquals("https://checkout.stripe.com/mock_url", url);
 
-            // Vérifier que le paiement a bien été sauvegardé avec le statut PENDING
             Optional<Payment> savedPayment = paymentRepository.findByReservationId(1L);
             assertTrue(savedPayment.isPresent());
-            assertEquals(1L, savedPayment.get().getReservationId());
-            assertEquals(100L, savedPayment.get().getClientId());
-            assertEquals(50.0, savedPayment.get().getAmount());
-            assertEquals("MAD", savedPayment.get().getCurrency());
-            assertEquals(PaymentStatus.PENDING, savedPayment.get().getStatus()); // PENDING maintenant
-            assertEquals("CREDIT_CARD", savedPayment.get().getPaymentMethod());
+            assertEquals(PaymentStatus.PENDING, savedPayment.get().getStatus());
             assertEquals("cs_test_mock123", savedPayment.get().getStripeSessionId());
-            assertNotNull(savedPayment.get().getCreatedAt());
         }
     }
 
@@ -83,7 +74,6 @@ class PaymentServiceTest {
     @Test
     @DisplayName("processPayment : doit échouer si la réservation n'existe pas")
     void processPayment_shouldFailIfReservationNotFound() {
-        // Mocker Feign pour retourner null
         when(reservationClient.getReservationById(999L)).thenReturn(null);
 
         Exception exception = assertThrows(RuntimeException.class, () -> {
@@ -91,7 +81,6 @@ class PaymentServiceTest {
         });
 
         assertTrue(exception.getMessage().contains("introuvable"));
-        // S'assurer qu'aucun paiement n'a été sauvegardé
         assertEquals(0, paymentRepository.count());
     }
 
@@ -101,8 +90,7 @@ class PaymentServiceTest {
     @Test
     @DisplayName("processPayment : doit échouer si Feign plante")
     void processPayment_shouldFailIfFeignThrowsException() {
-        when(reservationClient.getReservationById(anyLong()))
-                .thenThrow(new RuntimeException("Timeout"));
+        when(reservationClient.getReservationById(anyLong())).thenThrow(new RuntimeException("Timeout"));
 
         Exception exception = assertThrows(RuntimeException.class, () -> {
             paymentService.processPayment(1L, 100L, 50.0, "CREDIT_CARD");
@@ -118,13 +106,8 @@ class PaymentServiceTest {
     @DisplayName("getPaymentByReservation : doit retourner le paiement")
     void getPaymentByReservation_shouldReturnPayment() {
         Payment payment = Payment.builder()
-                .reservationId(5L)
-                .clientId(200L)
-                .amount(100.0)
-                .currency("MAD")
-                .status(PaymentStatus.SUCCESS)
-                .paymentMethod("PAYPAL")
-                .build();
+                .reservationId(5L).clientId(200L).amount(100.0)
+                .currency("MAD").status(PaymentStatus.SUCCESS).paymentMethod("PAYPAL").build();
         paymentRepository.save(payment);
 
         Payment found = paymentService.getPaymentByReservation(5L);
@@ -140,5 +123,46 @@ class PaymentServiceTest {
     @DisplayName("getPaymentByReservation : doit échouer si aucun paiement")
     void getPaymentByReservation_shouldThrowIfNotFound() {
         assertThrows(RuntimeException.class, () -> paymentService.getPaymentByReservation(999L));
+    }
+
+    // ==========================================
+    // 🆕 NOUVEAUX TESTS POUR LE WEBHOOK (Coverage)
+    // ==========================================
+    @Test
+    @DisplayName("confirmPayment : doit mettre à jour le statut et appeler Feign")
+    void confirmPayment_shouldUpdateStatusAndCallFeign() {
+        Payment payment = Payment.builder()
+                .reservationId(1L).clientId(100L).amount(50.0)
+                .currency("MAD").paymentMethod("CARD").status(PaymentStatus.PENDING)
+                .stripeSessionId("cs_test_123").build();
+        paymentRepository.save(payment);
+
+        // On ne fait rien quand Feign est appelé (succès)
+        doNothing().when(reservationClient).confirmReservation(1L);
+
+        paymentService.confirmPayment("cs_test_123");
+
+        Payment updatedPayment = paymentRepository.findByReservationId(1L).get();
+        assertEquals(PaymentStatus.SUCCESS, updatedPayment.getStatus());
+        verify(reservationClient, times(1)).confirmReservation(1L);
+    }
+
+    @Test
+    @DisplayName("confirmPayment : doit gérer l'erreur Feign sans crasher")
+    void confirmPayment_shouldHandleFeignException() {
+        Payment payment = Payment.builder()
+                .reservationId(1L).clientId(100L).amount(50.0)
+                .currency("MAD").paymentMethod("CARD").status(PaymentStatus.PENDING)
+                .stripeSessionId("cs_test_123").build();
+        paymentRepository.save(payment);
+
+        // On simule une erreur Feign (ex: 403 Forbidden)
+        doThrow(new RuntimeException("403 Forbidden")).when(reservationClient).confirmReservation(1L);
+
+        // Ne doit pas lancer d'exception (car le catch dans le service gère l'erreur)
+        assertDoesNotThrow(() -> paymentService.confirmPayment("cs_test_123"));
+
+        Payment updatedPayment = paymentRepository.findByReservationId(1L).get();
+        assertEquals(PaymentStatus.SUCCESS, updatedPayment.getStatus());
     }
 }

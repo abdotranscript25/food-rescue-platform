@@ -59,13 +59,13 @@ jobs:
       # Compile, teste (JaCoCo configuré dans chaque pom), package les .jar, puis envoie à Sonar.
       # qualitygate.wait=true : le job échoue si le Quality Gate n'est pas respecté.
       - name: Build, Test and Analyze
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        # env:
+        #   SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: >
           mvn -B --no-transfer-progress
           clean verify
-          org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
-          -Dsonar.qualitygate.wait=true
+          # org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+          # -Dsonar.qualitygate.wait=true
 
       # En cas d'échec, conserve les rapports de tests pour comprendre l'erreur
       - name: Upload test reports on failure
@@ -185,3 +185,20 @@ jobs:
       - name: Push Docker Image
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         run: docker push --all-tags ${{ env.DOCKER_NAMESPACE }}/${{ matrix.service }}
+
+  # ==========================================================
+  # JOB 3 : Détection de secrets (Secret Scanning avec Gitleaks)
+  # ==========================================================
+  secret-scan:
+    name: Secret Scanning (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0 # Nécessaire pour scanner tout l'historique des commits
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

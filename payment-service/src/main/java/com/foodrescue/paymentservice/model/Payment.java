@@ -35,6 +35,10 @@ public class Payment {
     @Column(nullable = false)
     private String paymentMethod; // "CREDIT_CARD", "APPLE_PAY", etc.
 
+    // AJOUT STRIPE
+    @Column(name = "stripe_session_id")
+    private String stripeSessionId;
+
     @Column(updatable = false)
     private LocalDateTime createdAt;
 

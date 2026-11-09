@@ -13,10 +13,10 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/users/profiles")
-@RequiredArgsConstructor // ⬅️ Remplace @Autowired
+@RequiredArgsConstructor
 public class UserProfileController {
 
-    private final UserProfileRepository userProfileRepository; // ⬅️ Injection par constructeur
+    private final UserProfileRepository userProfileRepository;
 
     // ==========================================
     // LECTURE (GET)
@@ -149,7 +149,7 @@ public class UserProfileController {
         if (dto.getPhone() != null) entity.setPhone(dto.getPhone());
         if (dto.getAddress() != null) entity.setAddress(dto.getAddress());
         if (dto.getCity() != null) entity.setCity(dto.getCity());
-        if (dto.getEmail() != null) entity.setEmail(dto.getEmail());
+        // ⚠️ SUPPRESSION DE LA LIGNE EMAIL ICI (L'email ne sera plus jamais modifié via ces méthodes)
         if (dto.getRole() != null) entity.setRole(dto.getRole());
     }
 }

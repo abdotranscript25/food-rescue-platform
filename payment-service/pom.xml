@@ -108,6 +108,14 @@
 			<artifactId>spring-security-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+
+		<!-- Stripe Java SDK -->
+		<dependency>
+			<groupId>com.stripe</groupId>
+			<artifactId>stripe-java</artifactId>
+			<version>34.1.0</version>
+		</dependency>
+
 	</dependencies>
 
 	<dependencyManagement>

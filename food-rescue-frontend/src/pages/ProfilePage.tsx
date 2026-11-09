@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Mail, Shield, Lock, CheckCircle2, AlertTriangle, ArrowLeft, KeyRound, Edit3, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,30 +7,16 @@ import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/store/authStore';
 import axiosClient from '@/api/axiosClient';
 
-function getStoredAuthData() {
-  try {
-    const storedAuth = localStorage.getItem('food-rescue-auth');
-    if (storedAuth) {
-      const parsed = JSON.parse(storedAuth);
-      return parsed?.state || {};
-    }
-  } catch (e) {
-    return {};
-  }
-  return {};
-}
-
 export default function ProfilePage() {
   const navigate = useNavigate();
   const authState = useAuthStore();
-  const storedData = getStoredAuthData();
 
-  const [firstName, setFirstName] = useState(authState.firstName || storedData.firstName || '');
-  const [lastName, setLastName] = useState(authState.lastName || storedData.lastName || '');
-  const [email, setEmail] = useState(authState.email || storedData.email || '');
+  const [firstName, setFirstName] = useState(authState.firstName || '');
+  const [lastName, setLastName] = useState(authState.lastName || '');
+  const [email, setEmail] = useState(authState.email || '');
 
-  const role = authState.role || storedData.role || 'CONSUMER';
-  const isMfaEnabled = Boolean(authState.mfaEnabled || storedData.mfaEnabled);
+  const role = authState.role || 'CONSUMER';
+  const isMfaEnabled = Boolean(authState.mfaEnabled);
 
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState('');
@@ -43,7 +29,14 @@ export default function ProfilePage() {
   const [passwordSuccess, setPasswordSuccess] = useState('');
   const [passwordError, setPasswordError] = useState('');
 
-  // 💡 GESTION DE LA MISE À JOUR DU PROFIL AVEC DOUBLE SYNCHRONISATION ET GESTION E-MAIL
+  // Synchroniser les champs si le store change
+  useEffect(() => {
+    setFirstName(authState.firstName || '');
+    setLastName(authState.lastName || '');
+    setEmail(authState.email || '');
+  }, [authState.firstName, authState.lastName, authState.email]);
+
+  // 💡 MISE À JOUR DU PROFIL (Nom/Prénom uniquement)
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setProfileSuccess('');
@@ -52,57 +45,27 @@ export default function ProfilePage() {
     try {
       setProfileLoading(true);
 
-      const currentEmailInStore = authState.email || storedData.email || '';
-      const emailChanged = email !== currentEmailInStore;
-
-      // 1. Mise à jour dans le user-service (table user_profiles)
+      // 1. Mise à jour dans le user-service (UNIQUEMENT prénom et nom)
       await axiosClient.put('/api/users/profiles/profile', {
         firstName,
-        lastName,
-        email
+        lastName
       });
 
-      // 2. Si l'e-mail a changé, mise à jour de l'auth-service + déconnexion de sécurité
-      if (emailChanged) {
-        await axiosClient.put('/api/auth/update-email', { newEmail: email });
+      // 2. Synchronisation dans auth-service
+      await axiosClient.put('/api/auth/update-profile', {
+        firstName,
+        lastName
+      });
 
-        localStorage.removeItem('food-rescue-auth');
-        if (authState.logout) {
-          authState.logout();
-        }
-
-        alert("Votre adresse e-mail a été modifiée avec succès. Veuillez vous reconnecter.");
-        navigate('/login');
-        return;
-      } else {
-        // Sinon, simple synchronisation du nom/prénom dans auth-service
-        await axiosClient.put('/api/auth/update-profile', {
-          firstName,
-          lastName
-        });
-      }
-
-      // 3. Mise à jour synchrone du Store Zustand & du LocalStorage
-      if (authState.setCredentials) {
-        const updatedState = {
-          ...authState,
-          firstName,
-          lastName,
-          email
-        };
-        authState.setCredentials(updatedState);
-
-        const storedAuth = localStorage.getItem('food-rescue-auth');
-        if (storedAuth) {
-          try {
-            const parsed = JSON.parse(storedAuth);
-            parsed.state = { ...parsed.state, firstName, lastName, email };
-            localStorage.setItem('food-rescue-auth', JSON.stringify(parsed));
-          } catch (err) {
-            console.error('Erreur MAJ localStorage', err);
-          }
-        }
-      }
+      // 3. Mise à jour du Store Zustand (Le persist mettra à jour le localStorage automatiquement)
+      authState.setAuth({
+        id: authState.id!,
+        email: authState.email!,
+        role: authState.role!,
+        firstName,
+        lastName,
+        mfaEnabled: authState.mfaEnabled
+      });
 
       setProfileSuccess('Vos informations personnelles ont été mises à jour avec succès.');
     } catch (err: any) {
@@ -218,11 +181,12 @@ export default function ProfilePage() {
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">Adresse E-mail</label>
                   <input
                     type="email"
-                    required
+                    readOnly
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full text-sm bg-gray-50/50 border border-gray-200 rounded-xl p-3 text-gray-900 focus:bg-white focus:ring-2 focus:ring-green-500 focus:outline-none transition-all"
+                    className="w-full text-sm bg-gray-100 border border-gray-200 rounded-xl p-3 text-gray-500 cursor-not-allowed focus:outline-none"
+                    title="Le changement d'email n'est pas disponible pour le moment."
                   />
+                  <p className="text-[11px] text-gray-400">Le changement d'email n'est pas autorisé pour le moment.</p>
                 </div>
 
                 {profileError && (

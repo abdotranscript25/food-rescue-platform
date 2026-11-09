@@ -260,6 +260,23 @@ public class ReservationController {
         return mapToDto(savedReservation);
     }
 
+    // ⬇️ NOUVEL ENDPOINT POUR STRIPE ⬇️
+    @PutMapping("/{id}/confirm")
+    public ReservationDto confirmReservationPayment(@PathVariable Long id) {
+        Reservation reservation = reservationRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Réservation introuvable."));
+
+        // On s'assure que le statut est bien CONFIRMED (au cas où il aurait été mis en PENDING plus tard)
+        if (reservation.getStatus() != ReservationStatus.CONFIRMED) {
+            reservation.setStatus(ReservationStatus.CONFIRMED);
+            reservationRepository.save(reservation);
+        }
+
+        System.out.println("✅ Paiement Stripe validé pour la réservation : " + id);
+
+        return mapToDto(reservation);
+    }
+
     @PutMapping("/{id}/cancel")
     public ReservationDto cancelReservation(@PathVariable Long id) {
         Reservation reservation = reservationRepository.findById(id)

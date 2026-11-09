@@ -5,9 +5,12 @@ import com.foodrescue.paymentservice.client.ReservationClient;
 import com.foodrescue.paymentservice.model.Payment;
 import com.foodrescue.paymentservice.model.PaymentStatus;
 import com.foodrescue.paymentservice.repository.PaymentRepository;
+import com.stripe.model.checkout.Session;
+import com.stripe.param.checkout.SessionCreateParams;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -21,7 +24,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -58,20 +64,30 @@ class PaymentControllerTest {
     void processPayment_shouldReturnPayment() throws Exception {
         when(reservationClient.getReservationById(anyLong())).thenReturn(new Object());
 
-        Map<String, Object> request = new HashMap<>();
-        request.put("reservationId", 10L);
-        request.put("clientId", 500L);
-        request.put("amount", 150.0);
-        request.put("paymentMethod", "CREDIT_CARD");
+        try (MockedStatic<Session> mockedSession = mockStatic(Session.class)) {
+            Session mockSession = mock(Session.class);
+            when(mockSession.getId()).thenReturn("cs_test_mock123");
+            when(mockSession.getUrl()).thenReturn("https://checkout.stripe.com/mock");
 
-        mockMvc.perform(post("/api/payments")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.reservationId").value(10))
-                .andExpect(jsonPath("$.amount").value(150.0))
-                .andExpect(jsonPath("$.currency").value("MAD"))
-                .andExpect(jsonPath("$.status").value("SUCCESS"));
+            // CORRECTION : Spécifier le type pour lever l'ambiguïté
+            mockedSession.when(() -> Session.create(any(SessionCreateParams.class))).thenReturn(mockSession);
+
+            Map<String, Object> request = new HashMap<>();
+            request.put("reservationId", 10L);
+            request.put("clientId", 500L);
+            request.put("amount", 150.0);
+            request.put("paymentMethod", "CREDIT_CARD");
+
+            mockMvc.perform(post("/api/payments")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.reservationId").value(10))
+                    .andExpect(jsonPath("$.amount").value(150.0))
+                    .andExpect(jsonPath("$.currency").value("MAD"))
+                    .andExpect(jsonPath("$.status").value("PENDING")) // Changé en PENDING
+                    .andExpect(jsonPath("$.checkoutUrl").value("https://checkout.stripe.com/mock")); // Ajout de l'URL
+        }
     }
 
     // ==========================================
@@ -93,7 +109,7 @@ class PaymentControllerTest {
     }
 
     // ==========================================
-    // 🆕 Test 3 : POST avec erreur Feign (NOUVEAU)
+    // Test 3 : POST avec erreur Feign
     // ==========================================
     @Test
     @WithMockUser(username = "user@test.com")
@@ -137,7 +153,7 @@ class PaymentControllerTest {
     }
 
     // ==========================================
-    // 🆕 Test 5 : GET /api/payments/reservation/{id} (Non trouvé)
+    // Test 5 : GET /api/payments/reservation/{id} (Non trouvé)
     // ==========================================
     @Test
     @WithMockUser(username = "user@test.com")

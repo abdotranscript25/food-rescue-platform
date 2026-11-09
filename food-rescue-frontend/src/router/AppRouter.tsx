@@ -13,6 +13,8 @@ import MyReservationsPage from '@/pages/MyReservationsPage';
 import MerchantReservationsPage from '@/pages/MerchantReservationsPage';
 import ProfilePage from '@/pages/ProfilePage';
 import { MerchantsPage } from '@/pages/MerchantsPage'; // 👈 Import de la page Marchands
+import PaymentSuccessPage from '@/pages/PaymentSuccessPage'; // ⬅️ NOUVEL IMPORT
+import PaymentCancelPage from '@/pages/PaymentCancelPage';   // ⬅️ NOUVEL IMPORT
 import MainLayout from '@/components/layout/MainLayout';
 import ProtectedRoute from './ProtectedRoute';
 
@@ -44,6 +46,10 @@ export default function AppRouter() {
             {/* Offres générales */}
             <Route path="/offers" element={<OfferListPage />} />
             <Route path="/offers/:id" element={<OfferDetailPage />} />
+
+            {/* ⬇️ NOUVELLES ROUTES POUR STRIPE ⬇️ */}
+            <Route path="/payment-success" element={<PaymentSuccessPage />} />
+            <Route path="/payment-cancel" element={<PaymentCancelPage />} />
 
             {/* ============================================ */}
             {/* Routes - Réservé aux CONSOMMATEURS           */}

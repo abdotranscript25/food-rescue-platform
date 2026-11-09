@@ -23,13 +23,20 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
+                        // ⬇️ AJOUT IMPORTANT POUR STRIPE ⬇️
+                        // On autorise le webhook (via payment-service) à confirmer la réservation sans JWT
+                        .requestMatchers(HttpMethod.PUT, "/api/reservations/*/confirm").permitAll()
+
                         // CORRECTION : ROLE_USER → ROLE_CONSUMER
                         .requestMatchers(HttpMethod.POST, "/api/reservations/**")
                         .hasAnyAuthority("ROLE_CONSUMER", "ROLE_MERCHANT", "ROLE_ADMIN")
+
                         .requestMatchers(HttpMethod.GET, "/api/reservations/**")
                         .hasAnyAuthority("ROLE_CONSUMER", "ROLE_MERCHANT", "ROLE_ADMIN")
+
                         .requestMatchers(HttpMethod.PUT, "/api/reservations/**")
                         .hasAnyAuthority("ROLE_CONSUMER", "ROLE_MERCHANT", "ROLE_ADMIN")
+
                         .requestMatchers(HttpMethod.DELETE, "/api/reservations/**")
                         .hasAuthority("ROLE_ADMIN")
 

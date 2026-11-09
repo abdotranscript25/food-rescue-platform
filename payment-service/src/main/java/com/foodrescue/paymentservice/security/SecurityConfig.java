@@ -24,6 +24,8 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // AJOUT STRIPE : Le webhook doit être accessible sans JWT
+                        .requestMatchers("/api/payments/webhook").permitAll()
                         .requestMatchers("/api/payments/**").authenticated()
                         .anyRequest().permitAll()
                 )

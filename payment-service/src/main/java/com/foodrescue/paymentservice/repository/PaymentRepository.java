@@ -6,4 +6,7 @@ import java.util.Optional;
 
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
     Optional<Payment> findByReservationId(Long reservationId);
+
+    // AJOUT STRIPE
+    Optional<Payment> findByStripeSessionId(String stripeSessionId);
 }

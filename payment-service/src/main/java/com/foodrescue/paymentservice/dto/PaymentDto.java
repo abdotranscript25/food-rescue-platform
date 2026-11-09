@@ -21,4 +21,7 @@ public class PaymentDto {
     private PaymentStatus status;
     private String paymentMethod;
     private LocalDateTime createdAt;
+
+    // AJOUT STRIPE : Permet d'envoyer l'URL au frontend
+    private String checkoutUrl;
 }

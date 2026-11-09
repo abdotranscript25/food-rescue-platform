@@ -4,9 +4,12 @@ import com.foodrescue.paymentservice.client.ReservationClient;
 import com.foodrescue.paymentservice.model.Payment;
 import com.foodrescue.paymentservice.model.PaymentStatus;
 import com.foodrescue.paymentservice.repository.PaymentRepository;
+import com.stripe.model.checkout.Session;
+import com.stripe.param.checkout.SessionCreateParams;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -16,6 +19,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
@@ -39,7 +43,7 @@ class PaymentServiceTest {
     }
 
     // ==========================================
-    // Test 1 : Paiement réussi
+    // Test 1 : Paiement réussi (Création session Stripe)
     // ==========================================
     @Test
     @DisplayName("processPayment : doit créer un paiement avec succès")
@@ -47,20 +51,30 @@ class PaymentServiceTest {
         // Mocker la réponse de Feign (réservation trouvée)
         when(reservationClient.getReservationById(1L)).thenReturn(new Object());
 
-        Payment payment = paymentService.processPayment(1L, 100L, 50.0, "CREDIT_CARD");
+        try (MockedStatic<Session> mockedSession = mockStatic(Session.class)) {
+            Session mockSession = mock(Session.class);
+            when(mockSession.getId()).thenReturn("cs_test_mock123");
+            when(mockSession.getUrl()).thenReturn("https://checkout.stripe.com/mock_url");
 
-        assertNotNull(payment.getId());
-        assertEquals(1L, payment.getReservationId());
-        assertEquals(100L, payment.getClientId());
-        assertEquals(50.0, payment.getAmount());
-        assertEquals("MAD", payment.getCurrency());
-        assertEquals(PaymentStatus.SUCCESS, payment.getStatus());
-        assertEquals("CREDIT_CARD", payment.getPaymentMethod());
-        assertNotNull(payment.getCreatedAt());
+            // CORRECTION : Spécifier le type pour lever l'ambiguïté
+            mockedSession.when(() -> Session.create(any(SessionCreateParams.class))).thenReturn(mockSession);
 
-        // Vérifier que le paiement a bien été sauvegardé
-        Optional<Payment> savedPayment = paymentRepository.findByReservationId(1L);
-        assertTrue(savedPayment.isPresent());
+            String url = paymentService.processPayment(1L, 100L, 50.0, "CREDIT_CARD");
+
+            assertEquals("https://checkout.stripe.com/mock_url", url);
+
+            // Vérifier que le paiement a bien été sauvegardé avec le statut PENDING
+            Optional<Payment> savedPayment = paymentRepository.findByReservationId(1L);
+            assertTrue(savedPayment.isPresent());
+            assertEquals(1L, savedPayment.get().getReservationId());
+            assertEquals(100L, savedPayment.get().getClientId());
+            assertEquals(50.0, savedPayment.get().getAmount());
+            assertEquals("MAD", savedPayment.get().getCurrency());
+            assertEquals(PaymentStatus.PENDING, savedPayment.get().getStatus()); // PENDING maintenant
+            assertEquals("CREDIT_CARD", savedPayment.get().getPaymentMethod());
+            assertEquals("cs_test_mock123", savedPayment.get().getStripeSessionId());
+            assertNotNull(savedPayment.get().getCreatedAt());
+        }
     }
 
     // ==========================================

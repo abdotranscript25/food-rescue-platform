@@ -210,7 +210,7 @@ jobs:
           fetch-depth: 0 # Nécessaire pour scanner tout l'historique des commits
 
       - name: Run Gitleaks
-        # Utilisation du SHA complet (v2.3.2) pour satisfaire SonarQube
-        uses: gitleaks/gitleaks-action@c9d3868426d1c26c4cb3ca2ac949e200203e6820 # v2.3.2
+        # SHA officiel de gitleaks-action v2 (corrigé)
+        uses: gitleaks/gitleaks-action@dcedce43c6f43de0b836d1fe38946645c9c638dc # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
